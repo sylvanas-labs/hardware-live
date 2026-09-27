@@ -24,7 +24,14 @@ public sealed record ClassificationResult(
     IReadOnlyList<LimitSensor> Limits,
     string? PrimaryCpuId,
     string? PrimaryGpuId,
-    IReadOnlyList<string> MissingMandatory)
+    IReadOnlyList<string> MissingMandatory,
+    /// <summary>True when <see cref="Roles.CpuTempControl"/> was resolved via the AMD
+    /// CCD fallback (no Tctl/Tdie-style sensor; the hottest "CCDn (Tdie)" reading was
+    /// picked at classification time). Consumers (HealthAnalyzer) must then treat the
+    /// control temperature as max(all cpu.temp.ccd sensors, including the one that won
+    /// classification) evaluated fresh per sample, not pinned to whichever CCD happened
+    /// to be hottest when the sensor-id set last changed.</summary>
+    bool CpuControlIsCcdMax = false)
 {
-    public static readonly ClassificationResult Empty = new([], [], null, null, []);
+    public static readonly ClassificationResult Empty = new([], [], null, null, [], false);
 }

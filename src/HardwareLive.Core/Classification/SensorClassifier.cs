@@ -65,6 +65,7 @@ public static partial class SensorClassifier
 
         var primaryCpuId = orderedHardware.FirstOrDefault(h => h.Type == "Cpu")?.Id;
         var primaryGpuId = ChoosePrimaryGpu(orderedHardware, sensorsByHardware);
+        var cpuControlIsCcdMax = false;
 
         foreach (var hw in orderedHardware)
         {
@@ -76,7 +77,7 @@ public static partial class SensorClassifier
             switch (hw.Type)
             {
                 case "Cpu" when hw.Id == primaryCpuId:
-                    ClassifyCpu(hw.Id, sensors, limits, addRole);
+                    cpuControlIsCcdMax = ClassifyCpu(hw.Id, sensors, limits, addRole);
                     break;
 
                 case "GpuNvidia" or "GpuAmd" or "GpuIntel":
@@ -135,7 +136,7 @@ public static partial class SensorClassifier
             .ThenBy(l => l.Kind, StringComparer.Ordinal)
             .ToList();
 
-        return new ClassificationResult(sortedRoles, sortedLimits, primaryCpuId, primaryGpuId, missing);
+        return new ClassificationResult(sortedRoles, sortedLimits, primaryCpuId, primaryGpuId, missing, cpuControlIsCcdMax);
     }
 
     // ---- Primary GPU selection -------------------------------------------------
