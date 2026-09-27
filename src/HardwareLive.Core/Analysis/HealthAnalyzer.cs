@@ -108,13 +108,13 @@ public static class HealthAnalyzer
         {
             concerns.Add(new Concern(
                 ConcernLevel.Critical, role.Role, role.SensorId,
-                $"{label} at {Format(value)} C, over critical ({Format(threshold.Critical)} C)"));
+                $"{label} at {Format(value)} {RoleLabels.DegreeCelsius}, over critical ({Format(threshold.Critical)} {RoleLabels.DegreeCelsius})"));
         }
         else if (value >= threshold.Watch)
         {
             concerns.Add(new Concern(
                 ConcernLevel.Watch, role.Role, role.SensorId,
-                $"{label} at {Format(value)} C, at watch ({Format(threshold.Watch)} C)"));
+                $"{label} at {Format(value)} {RoleLabels.DegreeCelsius}, at watch ({Format(threshold.Watch)} {RoleLabels.DegreeCelsius})"));
         }
     }
 
@@ -136,7 +136,7 @@ public static class HealthAnalyzer
         {
             concerns.Add(new Concern(
                 ConcernLevel.Watch, role.Role, role.SensorId,
-                $"{label} at {Format(value)} C, at watch ({Format(threshold.Watch)} C)"));
+                $"{label} at {Format(value)} {RoleLabels.DegreeCelsius}, at watch ({Format(threshold.Watch)} {RoleLabels.DegreeCelsius})"));
             return;
         }
 
@@ -146,7 +146,7 @@ public static class HealthAnalyzer
         {
             concerns.Add(new Concern(
                 ConcernLevel.Critical, role.Role, role.SensorId,
-                $"{label} at {Format(value)} C, over critical ({Format(threshold.Critical)} C)"));
+                $"{label} at {Format(value)} {RoleLabels.DegreeCelsius}, over critical ({Format(threshold.Critical)} {RoleLabels.DegreeCelsius})"));
         }
         else
         {
@@ -209,7 +209,7 @@ public static class HealthAnalyzer
                 etaMinutes = eta >= 0 ? eta : null;
             }
 
-            trends.Add(new Trend(role.SensorId, role.Role, slopePerMin, etaMinutes));
+            trends.Add(new Trend(role.SensorId, role.Role, slopePerMin, etaMinutes, RoleLabels.For(role.Role)));
 
             if (currentValue is { } value &&
                 etaMinutes is { } gatedEta &&
@@ -218,7 +218,7 @@ public static class HealthAnalyzer
             {
                 concerns.Add(new Concern(
                     ConcernLevel.Watch, role.Role, role.SensorId,
-                    $"{RoleLabels.For(role.Role)} on track to hit {Format(threshold.Critical)} C in ~{Format(gatedEta)} min"));
+                    $"{RoleLabels.For(role.Role)} on track to hit {Format(threshold.Critical)} {RoleLabels.DegreeCelsius} in ~{Format(gatedEta)} min"));
             }
         }
     }
@@ -417,15 +417,17 @@ public static class HealthAnalyzer
         var gpuTemp = SingleValue(snapshot, classification, Roles.GpuTempCore);
         var gpuPower = SingleValue(snapshot, classification, Roles.GpuPower);
 
-        var parts = new List<string> { status.ToString(), phase };
+        var parts = new List<string> { HeadlineCase(status), phase };
         if (cpuTemp is { } ct)
         {
-            parts.Add($"CPU {Format(ct)} C");
+            parts.Add($"CPU {Format(ct)} {RoleLabels.DegreeCelsius}");
         }
 
         if (gpuTemp is { } gt)
         {
-            parts.Add(gpuPower is { } gp ? $"GPU {Format(gt)} C @ {Format(gp)} W" : $"GPU {Format(gt)} C");
+            parts.Add(gpuPower is { } gp
+                ? $"GPU {Format(gt)} {RoleLabels.DegreeCelsius} @ {Format(gp)} W"
+                : $"GPU {Format(gt)} {RoleLabels.DegreeCelsius}");
         }
 
         return string.Join(", ", parts) + ".";
@@ -449,4 +451,15 @@ public static class HealthAnalyzer
     private static float? LatestValue(float?[] history) => history.Length > 0 ? history[^1] : null;
 
     private static string Format(double value) => value.ToString("0.#", CultureInfo.InvariantCulture);
+
+    /// <summary>Readable Title Case for the headline sentence ("Healthy, combined, ..."); the
+    /// wire-format <c>status</c> field and the UI's status badge stay upper case (docs/SPEC.md
+    /// step5-polish "Tiles consistency": "keep the status badge uppercase").</summary>
+    private static string HeadlineCase(HealthStatus status) => status switch
+    {
+        HealthStatus.HEALTHY => "Healthy",
+        HealthStatus.WATCH => "Watch",
+        HealthStatus.CRITICAL => "Critical",
+        _ => "Unknown",
+    };
 }

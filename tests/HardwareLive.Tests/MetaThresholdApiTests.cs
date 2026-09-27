@@ -34,6 +34,12 @@ public sealed class MetaThresholdApiTests
         var profile = meta.RootElement.GetProperty("profile");
         Assert.Equal("AMD Ryzen 7 9800X3D", profile.GetProperty("cpu").GetString());
         Assert.NotEqual(JsonValueKind.Null, profile.GetProperty("gpu").ValueKind);
+
+        // The wire shape the UI depends on for tile/legend/trend titles (docs/SPEC.md
+        // step5-polish "Ambiguous labels"): a key-casing or shape surprise here would have
+        // the UI silently fall back to raw sensor names with no visible error.
+        var labels = meta.RootElement.GetProperty("labels");
+        Assert.Equal("Drive temperature", labels.GetProperty("/nvme/2/temperature/0").GetProperty("title").GetString());
     }
 
     [Fact]

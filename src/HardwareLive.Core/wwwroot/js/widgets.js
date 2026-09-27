@@ -9,12 +9,21 @@ import {
   thresholdLevel,
   unitForSensorType,
   isLikelyDisconnected,
+  isChartSeriesConnected,
+  describeChart,
   ageMinutesLabel,
+  formatTrendText,
 } from './logic.js';
 
 const SPARK_SAMPLES = 60;
 const CHART_SAMPLES = 300;
-const SERIES_COLORS = ['--accent', '--critical', '--ok', '--accent2', '--watch'];
+// >= 8 distinct, color-blind-friendlier colors (docs/SPEC.md step5-polish "Charts"); a chart
+// never reuses one of these within itself, and only adds a dash pattern past 8 series.
+const SERIES_COLORS = [
+  '--series-1', '--series-2', '--series-3', '--series-4',
+  '--series-5', '--series-6', '--series-7', '--series-8',
+];
+const SERIES_DASH_PATTERNS = [[], [6, 3], [2, 2], [8, 3, 2, 3]];
 
 function cssVar(name) {
   return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
@@ -23,9 +32,12 @@ function cssVar(name) {
 function sensorInfo(sensorId, ctx) {
   const sensor = ctx.meta.sensors.find((s) => s.id === sensorId);
   const role = ctx.meta.roles.find((r) => r.sensorId === sensorId);
+  const label = ctx.meta.labels?.[sensorId];
   const unit = unitForSensorType(sensor?.type);
-  const decimals = unit === 'C' || unit === '%' || unit === 'W' || unit === 'V' ? 1 : 0;
+  const decimals = unit === '°C' || unit === '%' || unit === 'W' || unit === 'V' ? 1 : 0;
   return {
+    title: label?.title ?? sensor?.name ?? sensorId,
+    subtitle: label?.subtitle ?? null,
     name: sensor?.name ?? sensorId,
     hardwareId: sensor?.hardwareId,
     unit,
@@ -50,14 +62,14 @@ function buildSingleTile(sensorId, ctx) {
   const info = sensorInfo(sensorId, ctx);
   const tile = el('div', { className: 'tile', attrs: { 'data-sensor-id': sensorId } });
   const label = el('div', { className: 'tile-label' });
-  setSanitizedText(label, info.name);
+  setSanitizedText(label, info.title);
+  const subtitle = el('div', { className: 'tile-subtitle' });
   const value = el('div', { className: 'tile-value' });
-  const peak = el('div', { className: 'tile-peak' });
   const status = el('div', { className: 'tile-status' });
   const spark = el('canvas', { className: 'tile-spark', attrs: { width: 160, height: 26, 'aria-hidden': 'true' } });
   const bar = el('div', { className: 'tile-bar' });
 
-  tile.append(label, value, peak, status, spark, bar);
+  tile.append(label, subtitle, value, status, spark, bar);
   updateSingleTile(tile, sensorId, ctx);
   return tile;
 }
@@ -73,6 +85,10 @@ function updateSingleTile(tile, sensorId, ctx) {
   tile.classList.toggle('level-critical', level === 'critical');
   tile.classList.toggle('disconnected', disconnected);
 
+  const subtitleNode = tile.querySelector('.tile-subtitle');
+  setSanitizedText(subtitleNode, info.subtitle ?? '');
+  subtitleNode.hidden = !info.subtitle;
+
   const valueNode = tile.querySelector('.tile-value');
   clear(valueNode);
   valueNode.append(document.createTextNode(formatValue(value, null, info.decimals)));
@@ -80,12 +96,12 @@ function updateSingleTile(tile, sensorId, ctx) {
     valueNode.append(el('span', { className: 'unit', text: info.unit }));
   }
 
+  // Tiles without a resolved threshold (most non-temperature sensors) never get a level, so
+  // the status line stays empty rather than showing a redundant "OK" -- but the line itself
+  // is always present (docs/SPEC.md step5-polish "Tiles consistency": no ragged tile heights).
   const statusNode = tile.querySelector('.tile-status');
   statusNode.className = `tile-status${level ? ` level-${level}` : ''}`;
-  statusNode.textContent = disconnected ? 'not connected?' : level ? level.toUpperCase() : '';
-
-  const peakNode = tile.querySelector('.tile-peak');
-  peakNode.textContent = '';
+  statusNode.textContent = disconnected ? 'not connected' : level && level !== 'ok' ? level.toUpperCase() : '';
 
   const barNode = tile.querySelector('.tile-bar');
   const barColor = level ? `var(--${level === 'ok' ? 'ok' : level})` : 'var(--ok)';
@@ -121,17 +137,20 @@ function drawSparkline(canvas, hist, level) {
   ctx2d.stroke();
 }
 
+// One tile widget always covers exactly one sensor instance now -- app.js's render plan
+// splits a multi-instance ref (e.g. every DIMM's dimm.temp) into one widget-grid entry per
+// sensor id (docs/SPEC.md step5-polish "One tile per instance") rather than stacking several
+// readings inside a single grid cell, so there is no multi-tile wrapper to build here.
 function buildTileBody(body, entry, ctx) {
-  const ids = entry.ids ?? [];
-  const wrap = el('div', { className: ids.length > 1 ? 'tile-multi' : '' });
-  for (const id of ids) {
-    wrap.append(buildSingleTile(id, ctx));
+  const id = entry.ids?.[0];
+  if (id) {
+    body.append(buildSingleTile(id, ctx));
   }
-  body.append(wrap);
 }
 
 function updateTileBody(body, entry, ctx) {
-  for (const tileNode of body.querySelectorAll('.tile[data-sensor-id]')) {
+  const tileNode = body.querySelector('.tile[data-sensor-id]');
+  if (tileNode) {
     updateSingleTile(tileNode, tileNode.getAttribute('data-sensor-id'), ctx);
   }
 }
@@ -140,35 +159,62 @@ function updateTileBody(body, entry, ctx) {
 
 function buildChartBody(body, entry, ctx) {
   const title = el('h3', { className: 'chart-title' });
-  const legend = el('span');
-  title.append(document.createTextNode(''), legend);
+  title.append(document.createTextNode(''), el('span', { className: 'chart-note' }));
+  const legend = el('div', { className: 'chart-legend' });
   const canvas = el('canvas', { className: 'chart-canvas' });
-  body.append(title, canvas);
+  const hiddenNote = el('p', { className: 'chart-hidden-note', attrs: { hidden: true } });
+  body.append(title, legend, canvas, hiddenNote);
   updateChartBody(body, entry, ctx);
 }
 
 function updateChartBody(body, entry, ctx) {
-  const series = (entry.series ?? []).map((sensorId, index) => ({
+  const allSeries = (entry.series ?? []).map((sensorId) => ({
     sensorId,
     info: sensorInfo(sensorId, ctx),
-    color: SERIES_COLORS[index % SERIES_COLORS.length],
     data: history(ctx, sensorId).slice(-CHART_SAMPLES),
   }));
 
-  const title = body.querySelector('.chart-title');
-  clear(title);
-  const label = el('span');
-  const unit = series[0]?.info.unit;
-  setSanitizedText(label, unit ? `Last 5 min (${unit})` : 'Last 5 min');
-  title.append(label);
+  // Fans/pumps that read 0 or null for the whole visible window are excluded rather than
+  // drawn as a flat, meaningless line (docs/SPEC.md step5-polish "Charts") -- scoped to RPM
+  // series specifically, since e.g. a GPU at true idle can legitimately show 0% load for the
+  // whole window without being "not connected".
+  const connected = allSeries.filter((s) => s.info.unit !== 'RPM' || isChartSeriesConnected(s.data));
+  const hiddenCount = allSeries.length - connected.length;
+  const series = connected.map((s, index) => ({
+    ...s,
+    color: SERIES_COLORS[index % SERIES_COLORS.length],
+    dash: SERIES_DASH_PATTERNS[Math.floor(index / SERIES_COLORS.length) % SERIES_DASH_PATTERNS.length],
+  }));
+
+  // Titled from every configured series, not just the ones currently drawn -- a chart whose
+  // fans are all momentarily idle should still read "Fans (RPM)", not "No data yet".
+  const { heading, note } = describeChart(allSeries.map((s) => s.info));
+  const titleNode = body.querySelector('.chart-title');
+  setSanitizedText(titleNode.firstChild, heading);
+  const noteNode = titleNode.querySelector('.chart-note');
+  setSanitizedText(noteNode, note ? ` · ${note}` : '');
+
+  const legendNode = body.querySelector('.chart-legend');
+  clear(legendNode);
   for (const s of series) {
     const swatch = el('span', { className: 'legend-swatch' });
     setVar(swatch, 'background', cssVar(s.color));
-    const item = el('span');
+    const item = el('span', { className: 'legend-item' });
     const nameNode = document.createElement('span');
-    setSanitizedText(nameNode, s.info.name);
+    setSanitizedText(nameNode, s.info.title);
     item.append(swatch, nameNode);
-    title.append(item);
+    if (s.info.subtitle) {
+      const subtitleNode = el('span', { className: 'legend-subtitle' });
+      setSanitizedText(subtitleNode, `(${s.info.subtitle})`);
+      item.append(subtitleNode);
+    }
+    legendNode.append(item);
+  }
+
+  const hiddenNoteNode = body.querySelector('.chart-hidden-note');
+  hiddenNoteNode.hidden = hiddenCount === 0;
+  if (hiddenCount > 0) {
+    hiddenNoteNode.textContent = `${hiddenCount} not connected (hidden)`;
   }
 
   drawChart(body.querySelector('canvas.chart-canvas'), series, entry.widget?.max);
@@ -192,10 +238,18 @@ function drawChart(canvas, series, fixedMax) {
     return;
   }
 
-  let min = Math.min(...allValues);
-  let max = fixedMax ?? Math.max(...allValues);
-  min = Math.floor(Math.min(min, max) * 0.9);
-  max = Math.ceil(max * 1.05) || 1;
+  // A fixed-max chart (e.g. load, 0-100%) always spans exactly that range with even ticks --
+  // no data-dependent padding, which used to push the axis top past the real max (e.g. 105
+  // instead of 100).
+  let min;
+  let max;
+  if (fixedMax != null) {
+    min = 0;
+    max = fixedMax;
+  } else {
+    min = Math.floor(Math.min(...allValues) * 0.9);
+    max = Math.ceil(Math.max(...allValues) * 1.05) || 1;
+  }
 
   const padLeft = 34;
   const padBottom = 14;
@@ -218,6 +272,7 @@ function drawChart(canvas, series, fixedMax) {
   for (const s of series) {
     ctx2d.strokeStyle = cssVar(s.color);
     ctx2d.lineWidth = 1.8;
+    ctx2d.setLineDash(s.dash ?? []);
     ctx2d.beginPath();
     let started = false;
     const n = s.data.length;
@@ -234,6 +289,7 @@ function drawChart(canvas, series, fixedMax) {
     });
     ctx2d.stroke();
   }
+  ctx2d.setLineDash([]);
 }
 
 // ---- Gauge ------------------------------------------------------------------------------
@@ -253,7 +309,7 @@ function updateGaugeBody(body, entry, ctx) {
   const info = sensorId ? sensorInfo(sensorId, ctx) : null;
   const value = sensorId ? latestValue(ctx, sensorId) : null;
   const label = body.querySelector('.tile-label');
-  setSanitizedText(label, info?.name ?? 'Unavailable');
+  setSanitizedText(label, info?.title ?? 'Unavailable');
 
   const valueNode = body.querySelector('.gauge-value');
   clear(valueNode);
@@ -354,11 +410,15 @@ function updateAnalysisBody(body, entry, ctx) {
   } else {
     for (const trend of trends) {
       const info = sensorInfo(trend.sensorId, ctx);
-      const direction = trend.slopePerMin > 0 ? 'rising' : 'falling';
-      const eta = trend.etaMinutes != null ? `, ~${Math.round(trend.etaMinutes)} min to limit` : '';
+      // The server's role title (docs/SPEC.md step5-polish "Ambiguous labels": trends must
+      // not fall back to a bare raw sensor name like "CPU"); the meta-derived title covers
+      // the rare case of an older server without trend.label.
+      const title = trend.label || info.title;
       const item = el('li');
       const nameNode = document.createElement('span');
-      setSanitizedText(nameNode, `${info.name}: ${direction} ${Math.abs(trend.slopePerMin).toFixed(1)}/min${eta}`);
+      const suffix = info.subtitle ? ` (${info.subtitle})` : '';
+      const text = formatTrendText(trend, info.unit, latestValue(ctx, trend.sensorId), info.threshold);
+      setSanitizedText(nameNode, `${title}${suffix}: ${text}`);
       item.append(nameNode);
       trendList.append(item);
     }

@@ -119,6 +119,11 @@ source. PawnIO (GPLv2+) is not bundled.
    - fan or pump stall
    - stale sampler
 6. **Customizable UI** (new in r2, see next section).
+   - **°C / °F toggle** (Alessa, 2026-09-27): display-only conversion. Data, thresholds and
+     analysis stay in °C.
+     - The setting is stored server-side, so health text matches the UI. The default comes
+       from the browser region: US means °F.
+     - Rates and deltas convert with ×9/5 only; absolute values with ×9/5 + 32.
 7. **Notes hook (optional add-on, see Invariant 5).** It reads
    `%LOCALAPPDATA%\HardwareLive\notes.json` (`{ at, ts, source?, lines[] }`), which any tool
    can write: Claude Code, Codex, a script, or the user.

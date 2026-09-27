@@ -15,6 +15,7 @@ public sealed class SamplerClient
     private readonly string _expectedSamplerPath;
     private readonly IProcessImageVerifier _verifier;
     private readonly SecurityIdentifier _user;
+    private readonly string _pipeName;
     private readonly TimeSpan _readTimeout;
     private readonly Action<string> _log;
     private int _droppedFrameCount;
@@ -25,17 +26,26 @@ public sealed class SamplerClient
         IProcessImageVerifier? verifier = null,
         SecurityIdentifier? user = null,
         Action<string>? log = null,
-        TimeSpan? readTimeout = null)
+        TimeSpan? readTimeout = null,
+        string? pipeName = null)
     {
         _store = store ?? throw new ArgumentNullException(nameof(store));
         _expectedSamplerPath = Path.GetFullPath(expectedSamplerPath ?? Path.Combine(AppContext.BaseDirectory, "hl-sampler.exe"));
         _verifier = verifier ?? new ProcessImageVerifier();
         _user = user ?? GetCurrentUser();
+        // Production always connects to the real per-user sampler pipe; only a test passes
+        // an explicit override (docs/SPEC.md: sharing the production name with a real
+        // hl-sampler.exe collides, "All pipe instances are busy").
+        _pipeName = pipeName ?? PipeNames.ForUser(_user);
         _log = log ?? (_ => { });
         _readTimeout = readTimeout ?? DefaultReadTimeout;
     }
 
     public string ExpectedSamplerPath => _expectedSamplerPath;
+
+    /// <summary>The pipe this client connects to: <see cref="PipeNames.ForUser"/> for the
+    /// current user unless a test supplied an explicit override.</summary>
+    public string PipeName => _pipeName;
 
     /// <summary>Frames dropped after a successful connection: invalid JSON, or a frame
     /// that failed <see cref="FrameValidator"/>. The connection stays up; only the one
@@ -49,7 +59,7 @@ public sealed class SamplerClient
         {
             try
             {
-                await using var pipe = CreateClient(PipeNames.ForUser(_user));
+                await using var pipe = CreateClient(_pipeName);
                 await pipe.ConnectAsync(1000, cancellationToken);
 
                 if (!_verifier.HasExpectedOwner(pipe) || !_verifier.IsExpectedServer(pipe, _expectedSamplerPath))

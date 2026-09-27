@@ -11,11 +11,11 @@ public sealed class SamplerServiceTests
     {
         using var identity = WindowsIdentity.GetCurrent();
         var user = identity.User!;
-        var pipeName = PipeNames.ForUser(user);
+        var pipeName = PipeNames.ForTest();
         await using var existing = SamplerPipeFactory.Create(pipeName, SamplerPipeSecurity.Create(user));
         using var sampler = new FakeSampler();
         var messages = new List<string>();
-        var service = new SamplerService(sampler, user, messages.Add);
+        var service = new SamplerService(sampler, user, messages.Add, pipeName: pipeName);
 
         var exitCode = await service.RunAsync().WaitAsync(TimeSpan.FromSeconds(5));
 

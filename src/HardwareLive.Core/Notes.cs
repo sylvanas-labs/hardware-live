@@ -100,7 +100,7 @@ public static class NotesReader
                 return null;
             }
 
-            source = StripControlCharacters(sourceValue);
+            source = TextSanitizer.StripControlCharacters(sourceValue);
         }
 
         if (!root.TryGetProperty("lines", out var linesElement) ||
@@ -124,10 +124,10 @@ public static class NotesReader
                 return null;
             }
 
-            lines.Add(StripControlCharacters(line));
+            lines.Add(TextSanitizer.StripControlCharacters(line));
         }
 
-        return new NotesPayload(StripControlCharacters(at), ts, source, lines);
+        return new NotesPayload(TextSanitizer.StripControlCharacters(at), ts, source, lines);
     }
 
     private static bool HasOnlyAllowedProperties(JsonElement element)
@@ -142,23 +142,5 @@ public static class NotesReader
         }
 
         return true;
-    }
-
-    /// <summary>Strips C0 control characters and DEL. Real hardware/notes data has shown up
-    /// with embedded CR/NUL bytes (docs/SPEC.md); this is the same treatment applied to
-    /// sensor/hardware names before they ever reach the DOM.</summary>
-    private static string StripControlCharacters(string value)
-    {
-        Span<char> buffer = value.Length <= 512 ? stackalloc char[value.Length] : new char[value.Length];
-        var length = 0;
-        foreach (var c in value)
-        {
-            if (c >= ' ' && c != '\u007f')
-            {
-                buffer[length++] = c;
-            }
-        }
-
-        return new string(buffer[..length]);
     }
 }

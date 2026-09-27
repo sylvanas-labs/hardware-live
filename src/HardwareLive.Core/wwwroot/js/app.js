@@ -106,7 +106,15 @@ function buildRenderPlan() {
         unavailable++;
         continue;
       }
-      plan.push({ widget, ids, group: widgetGroup(widget) });
+      // A multi-instance role ref (e.g. dimm.temp) resolves to every matching sensor: each
+      // instance gets its own grid entry (docs/SPEC.md step5-polish "One tile per instance"),
+      // never several readings stacked inside one grid cell. They still share the same
+      // underlying `widget` object -- size/remove controls, and reordering, act on the whole
+      // group.
+      const group = widgetGroup(widget);
+      for (const id of ids) {
+        plan.push({ widget, ids: [id], group });
+      }
     } else if (widget.kind === 'chart') {
       const refs = widget.series?.length ? widget.series : widget.ref ? [widget.ref] : [];
       const series = [];

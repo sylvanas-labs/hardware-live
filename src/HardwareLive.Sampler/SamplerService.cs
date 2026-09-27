@@ -11,6 +11,7 @@ public sealed class SamplerService
 
     private readonly ISensorFrameSampler _sampler;
     private readonly SecurityIdentifier _user;
+    private readonly string _pipeName;
     private readonly Action<string> _log;
     private readonly TimeSpan _writeTimeout;
     private readonly object _frameLock = new();
@@ -20,10 +21,15 @@ public sealed class SamplerService
         ISensorFrameSampler sampler,
         SecurityIdentifier user,
         Action<string>? log = null,
-        TimeSpan? writeTimeout = null)
+        TimeSpan? writeTimeout = null,
+        string? pipeName = null)
     {
         _sampler = sampler ?? throw new ArgumentNullException(nameof(sampler));
         _user = user ?? throw new ArgumentNullException(nameof(user));
+        // Production always serves the real per-user sampler pipe; only a test supplies an
+        // explicit override so it never collides with a real hl-sampler.exe on the same
+        // machine (docs/SPEC.md: single-writer pipe, "All pipe instances are busy").
+        _pipeName = pipeName ?? PipeNames.ForUser(_user);
         _log = log ?? SamplerLog.Write;
         _writeTimeout = writeTimeout ?? DefaultWriteTimeout;
     }
@@ -36,7 +42,7 @@ public sealed class SamplerService
 
         try
         {
-            var pipeName = PipeNames.ForUser(_user);
+            var pipeName = _pipeName;
             var security = SamplerPipeSecurity.Create(_user);
 
             while (!cancellationToken.IsCancellationRequested)

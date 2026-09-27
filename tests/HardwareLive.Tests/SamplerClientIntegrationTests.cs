@@ -14,10 +14,10 @@ public sealed class SamplerClientIntegrationTests
     {
         using var identity = WindowsIdentity.GetCurrent();
         var user = identity.User!;
-        var pipeName = PipeNames.ForUser(user);
+        var pipeName = PipeNames.ForTest();
         await using var server = SamplerPipeFactory.Create(pipeName, SamplerPipeSecurity.Create(user));
         var store = new TelemetryStore();
-        var client = new SamplerClient(store, "expected.exe", new FixedVerifier(true), user);
+        var client = new SamplerClient(store, "expected.exe", new FixedVerifier(true), user, pipeName: pipeName);
         using var cancellation = new CancellationTokenSource();
         var clientTask = client.RunAsync(cancellation.Token);
 
@@ -56,10 +56,10 @@ public sealed class SamplerClientIntegrationTests
     {
         using var identity = WindowsIdentity.GetCurrent();
         var user = identity.User!;
-        var pipeName = PipeNames.ForUser(user);
+        var pipeName = PipeNames.ForTest();
         await using var server = SamplerPipeFactory.Create(pipeName, SamplerPipeSecurity.Create(user));
         var store = new TelemetryStore();
-        var client = new SamplerClient(store, "expected.exe", new FixedVerifier(false), user);
+        var client = new SamplerClient(store, "expected.exe", new FixedVerifier(false), user, pipeName: pipeName);
         using var cancellation = new CancellationTokenSource();
         var clientTask = client.RunAsync(cancellation.Token);
 
@@ -88,10 +88,10 @@ public sealed class SamplerClientIntegrationTests
     {
         using var identity = WindowsIdentity.GetCurrent();
         var user = identity.User!;
-        var pipeName = PipeNames.ForUser(user);
+        var pipeName = PipeNames.ForTest();
         await using var server = SamplerPipeFactory.Create(pipeName, SamplerPipeSecurity.Create(user));
         var store = new TelemetryStore();
-        var client = new SamplerClient(store, "expected.exe", new SplitVerifier(owner: false, image: true), user);
+        var client = new SamplerClient(store, "expected.exe", new SplitVerifier(owner: false, image: true), user, pipeName: pipeName);
         using var cancellation = new CancellationTokenSource();
         var clientTask = client.RunAsync(cancellation.Token);
 
@@ -114,10 +114,10 @@ public sealed class SamplerClientIntegrationTests
     {
         using var identity = WindowsIdentity.GetCurrent();
         var user = identity.User!;
-        var pipeName = PipeNames.ForUser(user);
+        var pipeName = PipeNames.ForTest();
         await using var server = SamplerPipeFactory.Create(pipeName, SamplerPipeSecurity.Create(user));
         var store = new TelemetryStore();
-        var client = new SamplerClient(store, "expected.exe", new FixedVerifier(true), user);
+        var client = new SamplerClient(store, "expected.exe", new FixedVerifier(true), user, pipeName: pipeName);
         using var cancellation = new CancellationTokenSource();
         var clientTask = client.RunAsync(cancellation.Token);
 

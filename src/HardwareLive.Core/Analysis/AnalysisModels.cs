@@ -33,7 +33,10 @@ public static class LoadPhase
 /// contain control characters, e.g. a real DIMM name with embedded CR/NUL bytes).</summary>
 public sealed record Concern(string Level, string Role, string SensorId, string Message);
 
-public sealed record Trend(string SensorId, string Role, double SlopePerMin, double? EtaMinutes);
+/// <summary><see cref="Label"/> is the role's plain-English title (docs/SPEC.md step5-polish
+/// "Ambiguous labels": trends must not fall back to a raw sensor name like "CPU"); it
+/// defaults so every existing 4-argument call site keeps compiling.</summary>
+public sealed record Trend(string SensorId, string Role, double SlopePerMin, double? EtaMinutes, string Label = "");
 
 public sealed record AnalysisResult(
     HealthStatus Status,

@@ -68,14 +68,18 @@ export function createSensorPicker({ dialogEl, getMeta, getLatestValue, onAdd })
     const sensors = meta?.sensors ?? [];
     const hardware = meta?.hardware ?? [];
     const roles = meta?.roles ?? [];
+    const labels = meta?.labels ?? {};
     const hardwareById = new Map(hardware.map((hw) => [hw.id, hw]));
     const roleBySensorId = new Map(roles.map((role) => [role.sensorId, role.role]));
 
     return sensors.map((sensor) => {
       const hw = hardwareById.get(sensor.hardwareId);
+      const label = labels[sensor.id];
       return {
         id: sensor.id,
         name: sensor.name,
+        title: label?.title ?? sensor.name,
+        subtitle: label?.subtitle ?? null,
         type: sensor.type,
         hardwareId: sensor.hardwareId,
         hardwareName: hw?.name ?? '',
@@ -124,8 +128,16 @@ export function createSensorPicker({ dialogEl, getMeta, getLatestValue, onAdd })
           attrs: { type: 'button', role: 'option', 'aria-selected': 'false' },
         });
         const nameNode = document.createElement('span');
-        setSanitizedText(nameNode, sanitizeDisplayText(row.name) || row.id);
-        const valueNode = el('span', { className: 'muted', text: formatValue(value, unit, unit === 'C' ? 1 : 0) });
+        setSanitizedText(nameNode, sanitizeDisplayText(row.title) || row.id);
+        if (row.subtitle) {
+          const subtitleNode = el('span', { className: 'muted picker-subtitle' });
+          setSanitizedText(subtitleNode, `(${row.subtitle})`);
+          nameNode.append(document.createTextNode(' '), subtitleNode);
+        }
+        const valueNode = el('span', {
+          className: 'muted',
+          text: formatValue(value, unit, unit === '°C' ? 1 : 0),
+        });
         button.append(nameNode, valueNode);
         if (row.role) {
           const badge = el('span', { className: 'role-badge', text: row.role });

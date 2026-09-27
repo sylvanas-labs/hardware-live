@@ -6,7 +6,7 @@
 
 /** Units per Sensor Type (docs/SPEC.md step5 feature 2). */
 const UNIT_BY_SENSOR_TYPE = {
-  Temperature: 'C',
+  Temperature: '°C',
   Power: 'W',
   Clock: 'MHz',
   Load: '%',
@@ -118,16 +118,23 @@ export function resolveWidgetRef(ref, meta) {
   return [];
 }
 
-/** Case-insensitive match against every searchable field of a sensor-picker row. */
+/** Case-insensitive match against every searchable field of a sensor-picker row (the raw
+ * name/hardware name as well as the resolved title/subtitle, so a search still finds a
+ * sensor by either its plain-English label or its underlying hardware/sensor name). */
 export function matchesSensorSearch(query, entry) {
   const q = (query ?? '').trim().toLowerCase();
   if (!q) {
     return true;
   }
 
-  const haystacks = [entry?.name, entry?.hardwareName, entry?.role, entry?.id].filter(
-    (value) => value != null && value !== '',
-  );
+  const haystacks = [
+    entry?.name,
+    entry?.hardwareName,
+    entry?.role,
+    entry?.id,
+    entry?.title,
+    entry?.subtitle,
+  ].filter((value) => value != null && value !== '');
   return haystacks.some((value) => String(value).toLowerCase().includes(q));
 }
 
@@ -261,4 +268,76 @@ export function isLikelyDisconnected(history) {
   }
 
   return history.every((value) => value === 0 || value === 0.0);
+}
+
+/**
+ * A chart series is "not connected" when every sample in the visible window is 0 or absent
+ * (docs/SPEC.md step5-polish "Charts": fans/pumps that never spin in the window shouldn't
+ * clutter a chart with a flat zero line). Unlike {@link isLikelyDisconnected} (tile dimming,
+ * which deliberately treats an all-null history as inconclusive), a chart has to decide
+ * in/out right now, so null and 0 are both "nothing to show" here. An empty window has
+ * nothing to judge yet, so it's treated as connected (never hidden by default).
+ */
+export function isChartSeriesConnected(data) {
+  if (!Array.isArray(data) || data.length === 0) {
+    return true;
+  }
+
+  return !data.every((value) => value == null || value === 0);
+}
+
+const CHART_HEADING_BY_UNIT = {
+  '°C': 'Temperatures (°C)',
+  W: 'Power (W)',
+  '%': 'Load (%)',
+  RPM: 'Fans (RPM)',
+};
+
+/**
+ * The chart title (docs/SPEC.md step5-polish "Charts"): when every series shares one of the
+ * four common units, a fixed heading by content ("Temperatures (°C)", "Power (W)",
+ * "Load (%)", "Fans (RPM)") replaces the old unit-agnostic "Last 5 min (C)". A mixed-unit or
+ * uncommon-unit chart instead names its first series plus a count of the rest:
+ * "<first series title> +N (unit)". `note` is the small "last 5 min" caption shown under the
+ * heading either way. `series` is an array of `{ title, unit }` (already-resolved sensor
+ * labels), in on-chart order.
+ */
+export function describeChart(series) {
+  const list = Array.isArray(series) ? series : [];
+  if (list.length === 0) {
+    return { heading: 'No data yet', note: '' };
+  }
+
+  const firstUnit = list[0].unit ?? '';
+  const sameUnit = list.every((s) => (s.unit ?? '') === firstUnit);
+  if (sameUnit && CHART_HEADING_BY_UNIT[firstUnit]) {
+    return { heading: CHART_HEADING_BY_UNIT[firstUnit], note: 'last 5 min' };
+  }
+
+  const extra = list.length - 1;
+  const unitSuffix = firstUnit ? ` (${firstUnit})` : '';
+  const heading = extra > 0 ? `${list[0].title} +${extra}${unitSuffix}` : `${list[0].title}${unitSuffix}`;
+  return { heading, note: 'last 5 min' };
+}
+
+/**
+ * Text for one trend line, e.g. "rising 2.0 °C/min, ~6 min to limit".
+ * - The rate carries its unit per minute ("°C/min", "W/min", ...).
+ * - The time-to-limit is shown only when the reading is already within 10 degrees of its
+ *   watch level. Projecting a noisy 3-minute slope from a cool idle reading ("CPU at 64 °C,
+ *   ~6 min to limit") is alarming noise, not information.
+ */
+export function formatTrendText(trend, unit, currentValue, threshold) {
+  const direction = trend.slopePerMin > 0 ? 'rising' : 'falling';
+  const rateUnit = unit ? ` ${unit}/min` : '/min';
+  let text = `${direction} ${Math.abs(trend.slopePerMin).toFixed(1)}${rateUnit}`;
+  const nearLimit =
+    typeof currentValue === 'number' &&
+    threshold != null &&
+    typeof threshold.watch === 'number' &&
+    currentValue >= threshold.watch - 10;
+  if (trend.etaMinutes != null && trend.slopePerMin > 0 && nearLimit) {
+    text += `, ~${Math.max(1, Math.round(trend.etaMinutes))} min to limit`;
+  }
+  return text;
 }

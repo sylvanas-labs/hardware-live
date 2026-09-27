@@ -22,11 +22,13 @@ import {
   computeKeyboardMoveTarget,
   ageMinutesLabel,
   isLikelyDisconnected,
+  isChartSeriesConnected,
+  describeChart,
   groupForRole,
 } from '../../src/HardwareLive.Core/wwwroot/js/logic.js';
 
 test('unitForSensorType maps every documented sensor type', () => {
-  assert.equal(unitForSensorType('Temperature'), 'C');
+  assert.equal(unitForSensorType('Temperature'), '°C');
   assert.equal(unitForSensorType('Power'), 'W');
   assert.equal(unitForSensorType('Clock'), 'MHz');
   assert.equal(unitForSensorType('Load'), '%');
@@ -123,6 +125,13 @@ test('matchesSensorSearch matches name, hardware, role and id case-insensitively
   assert.equal(matchesSensorSearch('nvidia', entry), false);
 });
 
+test('matchesSensorSearch also matches the resolved title and subtitle', () => {
+  const entry = { name: 'Composite Temperature', title: 'Drive temperature', subtitle: 'Samsung SSD 990 PRO 2TB' };
+  assert.equal(matchesSensorSearch('drive temperature', entry), true);
+  assert.equal(matchesSensorSearch('990 pro', entry), true);
+  assert.equal(matchesSensorSearch('nvidia', entry), false);
+});
+
 test('sanitizeDisplayText strips C0 control characters from the real DIMM fixture name', () => {
   const fixturePath = path.join(
     path.dirname(fileURLToPath(import.meta.url)),
@@ -149,9 +158,9 @@ test('sanitizeDisplayText strips a bare tab (still a C0 control) and passes plai
 });
 
 test('formatValue renders an en dash for missing/non-finite values', () => {
-  assert.equal(formatValue(null, 'C'), '–');
-  assert.equal(formatValue(NaN, 'C'), '–');
-  assert.equal(formatValue(42.345, 'C', 1), '42.3 C');
+  assert.equal(formatValue(null, '°C'), '–');
+  assert.equal(formatValue(NaN, '°C'), '–');
+  assert.equal(formatValue(42.345, '°C', 1), '42.3 °C');
   assert.equal(formatValue(0, '%', 0), '0 %');
   assert.equal(formatValue(5, ''), '5');
 });
@@ -202,4 +211,64 @@ test('isLikelyDisconnected flags an all-zero history but not an all-null or mixe
   assert.equal(isLikelyDisconnected([0, null, 0]), false);
   assert.equal(isLikelyDisconnected([0, 1200, 0]), false);
   assert.equal(isLikelyDisconnected([]), false);
+});
+
+test('isChartSeriesConnected excludes a series that is all zero/null across the window', () => {
+  assert.equal(isChartSeriesConnected([0, 0, 0]), false);
+  assert.equal(isChartSeriesConnected([null, null]), false);
+  assert.equal(isChartSeriesConnected([0, null, 0]), false);
+  assert.equal(isChartSeriesConnected([0, 1200, 0]), true);
+  assert.equal(isChartSeriesConnected([]), true, 'no data yet is not evidence of disconnection');
+});
+
+test('describeChart titles by content+unit and falls back to a custom title for mixed units', () => {
+  assert.deepEqual(describeChart([{ title: 'CPU temperature', unit: '°C' }, { title: 'GPU temperature', unit: '°C' }]), {
+    heading: 'Temperatures (°C)',
+    note: 'last 5 min',
+  });
+  assert.deepEqual(describeChart([{ title: 'CPU load', unit: '%' }]), { heading: 'Load (%)', note: 'last 5 min' });
+  assert.deepEqual(describeChart([{ title: 'CPU package power', unit: 'W' }, { title: 'GPU power', unit: 'W' }]), {
+    heading: 'Power (W)',
+    note: 'last 5 min',
+  });
+  assert.deepEqual(describeChart([{ title: 'CPU fan', unit: 'RPM' }]), { heading: 'Fans (RPM)', note: 'last 5 min' });
+
+  assert.deepEqual(
+    describeChart([
+      { title: 'CPU load', unit: '%' },
+      { title: 'GPU load', unit: '%' },
+      { title: 'RAM load', unit: '%' },
+    ]),
+    { heading: 'Load (%)', note: 'last 5 min' },
+  );
+
+  // Mixed units (e.g. a custom chart pairing a clock with a load): named after the first
+  // series plus a count of the rest, per docs/SPEC.md step5-polish "Charts".
+  assert.deepEqual(
+    describeChart([
+      { title: 'CPU clock (effective)', unit: 'MHz' },
+      { title: 'CPU load', unit: '%' },
+    ]),
+    { heading: 'CPU clock (effective) +1 (MHz)', note: 'last 5 min' },
+  );
+
+  assert.deepEqual(describeChart([]), { heading: 'No data yet', note: '' });
+});
+
+test('formatTrendText includes the unit per minute', async () => {
+  const { formatTrendText } = await import('../../src/HardwareLive.Core/wwwroot/js/logic.js');
+  assert.equal(formatTrendText({ slopePerMin: 2, etaMinutes: null }, '°C', 50, null), 'rising 2.0 °C/min');
+  assert.equal(formatTrendText({ slopePerMin: -1.25, etaMinutes: null }, 'W', 50, null), 'falling 1.3 W/min');
+});
+
+test('formatTrendText shows time-to-limit only near the watch level', async () => {
+  const { formatTrendText } = await import('../../src/HardwareLive.Core/wwwroot/js/logic.js');
+  const threshold = { watch: 88, critical: 95 };
+  // Cool, bursty CPU: no alarming ETA (real case from the 2026-09-27 live check).
+  assert.equal(formatTrendText({ slopePerMin: 5.1, etaMinutes: 6 }, '°C', 64.5, threshold), 'rising 5.1 °C/min');
+  // Within 10 degrees of watch: ETA shown.
+  assert.equal(formatTrendText({ slopePerMin: 2, etaMinutes: 3.4 }, '°C', 80, threshold), 'rising 2.0 °C/min, ~3 min to limit');
+  // Falling never shows an ETA; unknown threshold never shows an ETA.
+  assert.equal(formatTrendText({ slopePerMin: -2, etaMinutes: 3 }, '°C', 90, threshold), 'falling 2.0 °C/min');
+  assert.equal(formatTrendText({ slopePerMin: 2, etaMinutes: 3 }, '°C', 90, null), 'rising 2.0 °C/min');
 });

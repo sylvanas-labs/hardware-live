@@ -241,6 +241,7 @@ internal sealed class RequestRouter
                 missingMandatory = classification.MissingMandatory,
                 thresholds = thresholds.Thresholds,
                 profile = new { cpu = thresholds.CpuProfile, gpu = thresholds.GpuProfile },
+                labels = SensorLabelBuilder.Build(frame, classification),
             });
             return;
         }

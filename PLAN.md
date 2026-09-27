@@ -22,6 +22,12 @@ Full spec: [docs/SPEC.md](docs/SPEC.md) (APPROVED r4).
 - Light theme polish, CSV export of a session, alert sounds
 
 ## Done
+- 2026-09-27 UI polish pass: `/api/meta` `labels` map (role title + disambiguating subtitle,
+  replacing raw LHM names on tiles/legends/trends/picker), one grid tile per multi-instance
+  sensor (`grid-auto-flow: dense`), °C everywhere, chart titles by content+unit with an
+  8-color color-blind-friendlier palette + disconnected-series exclusion + fixed-axis fix,
+  uniform tile heights, and test-isolated sampler pipe names (`PipeNames.ForTest()`); 12 new
+  C# tests + 3 new `tests/ui/logic.test.mjs` tests
 - 2026-09-27 Widget grid UI complete (step 5): dashboard served as embedded static assets
   (strict CSP, X-Content-Type-Options, no-store, explicit allow-list, no filesystem reads at
   request time), tile/chart/gauge/analysis/notes widgets, pointer + keyboard drag reorder in an
