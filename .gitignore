@@ -11,3 +11,6 @@ TestResults/
 
 # Repository-local .NET template cache used by the sandboxed build environment
 .dotnet-template-hive/
+
+# Package output (tools/package.ps1) -- rebuilt from source, never committed.
+out/

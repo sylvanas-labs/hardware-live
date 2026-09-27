@@ -1,3 +1,4 @@
+using HardwareLive.App;
 using HardwareLive.Core;
 using HardwareLive.Core.Profiles;
 
@@ -5,10 +6,26 @@ using HardwareLive.Core.Profiles;
 // Program Files is read-only); the app-base-directory file is a backward-compatible
 // fallback for installs that predate this location.
 var configPath = ConfigPaths.Resolve(AppContext.BaseDirectory);
+var parsedArgs = AppArguments.Parse(args);
+
+// Reopen path (docs/SPEC.md Component 8 step 5): a second launch never starts a second
+// server -- it would just fail the port bind -- it only (optionally) opens the window.
+using var instanceGuard = new SingleInstanceGuard();
+if (!instanceGuard.IsPrimaryInstance)
+{
+    if (WindowLaunchDecision.ShouldLaunchOnSecondaryInstance(parsedArgs.Open))
+    {
+        var secondaryPort = PortConfiguration.Resolve(args, configPath);
+        DashboardWindowLauncher.Launch(DashboardUrl.Build(secondaryPort));
+    }
+
+    return;
+}
+
 var port = PortConfiguration.Resolve(args, configPath);
 var thresholdConfig = UserThresholdConfig.Load(configPath);
 var store = new TelemetryStore();
-// Installed layout: <root>\app\HardwareLive.App.exe and <root>\sampler\hl-sampler.exe.
+// Installed layout: <root>\app\hardware-live.exe and <root>\sampler\hl-sampler.exe.
 // They must be separate folders: the sampler is published self-contained, and its private
 // runtime (coreclr.dll, hostpolicy.dll, ...) in the app folder hangs the framework-dependent app.
 var samplerPath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "sampler", "hl-sampler.exe"));
@@ -21,6 +38,13 @@ try
 {
     await using var server = HardwareLiveServer.Create(port, store, thresholdConfig);
     await server.StartAsync();
+
+    if (WindowLaunchDecision.ShouldLaunchOnPrimaryInstance(
+            parsedArgs.NoWindow, parsedArgs.Open, AppStartupConfig.ReadOpenWindowOnStart(configPath)))
+    {
+        DashboardWindowLauncher.Launch(DashboardUrl.Build(port));
+    }
+
     await server.WaitForShutdownAsync();
 }
 finally

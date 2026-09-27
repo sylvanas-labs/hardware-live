@@ -27,6 +27,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\src\HardwareLive.App\HardwareLive.App.csproj" />
     <ProjectReference Include="..\..\src\HardwareLive.Core\HardwareLive.Core.csproj" />
     <ProjectReference Include="..\..\src\HardwareLive.Protocol\HardwareLive.Protocol.csproj" />
     <ProjectReference Include="..\..\src\HardwareLive.Sampler\HardwareLive.Sampler.csproj" />

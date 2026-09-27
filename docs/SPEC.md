@@ -141,11 +141,14 @@ source. PawnIO (GPLv2+) is not bundled.
    - `docs/NOTES-HOOK.md` documents the contract, with an optional example of how a Claude Code
      or Codex user can wire it up. Nothing in the app depends on it.
 8. **Install and lifecycle** (`install.ps1`, ASCII, PowerShell 5.1-safe). Two per-user logon
-   tasks:
-   - `HL-Sampler`: runs as **SYSTEM** at logon, with `hl-sampler.exe --user-sid <SID>` from
-     `Program Files\HardwareLive`.
-   - `HL-App`: RunLevel Limited. It waits for the pipe and opens an Edge `--app` window
-     from the unelevated process.
+   tasks in the Task Scheduler folder `\HardwareLive\` (decided 2026-09-27; uninstall can
+   remove the whole folder):
+   - `\HardwareLive\Sampler`: runs as **SYSTEM** at logon, with `hl-sampler.exe --user-sid
+     <SID>` from `Program Files\HardwareLive\sampler`. It accepts local/domain (`S-1-5-21-`)
+     and Microsoft Entra ID (`S-1-12-1-`) user SIDs.
+   - `\HardwareLive\App`: RunLevel Limited, runs `hardware-live.exe`. It opens an Edge
+     `--app` window at `http://127.0.0.1:<port>` from the unelevated process.
+     `hardware-live.exe --open` reopens the window.
    - Both restart on failure: 3 tries, 1 min apart.
    - PawnIO missing means the UI shows a guided-install banner and CPU/board tiles read "needs
      PawnIO", not zero.
