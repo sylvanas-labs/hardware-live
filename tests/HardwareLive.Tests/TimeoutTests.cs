@@ -48,7 +48,7 @@ public sealed class TimeoutTests
             () => SamplerService.TryWriteFrameAsync(stream, frame, TimeSpan.FromSeconds(5), cancellation.Token));
     }
 
-    [Fact]
+    [AdminFact]
     public async Task ClientReadTimesOutWhenTheServerNeverWrites()
     {
         using var identity = WindowsIdentity.GetCurrent();
@@ -70,7 +70,7 @@ public sealed class TimeoutTests
             () => SamplerClient.TryReadFrameAsync(client, ShortTimeout, CancellationToken.None));
     }
 
-    [Fact]
+    [AdminFact]
     public async Task ClientReadSucceedsWhenAFrameArrivesBeforeTheTimeout()
     {
         using var identity = WindowsIdentity.GetCurrent();

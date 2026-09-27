@@ -9,7 +9,7 @@ namespace HardwareLive.Tests;
 
 public sealed class SamplerClientIntegrationTests
 {
-    [Fact]
+    [AdminFact]
     public async Task AcceptedPipeFrameFlowsThroughStoreAndHttpApis()
     {
         using var identity = WindowsIdentity.GetCurrent();
@@ -42,7 +42,7 @@ public sealed class SamplerClientIntegrationTests
             Assert.Equal(62.5f, snapshot.RootElement.GetProperty("history").GetProperty("/cpu/0/temp/0")[0].GetSingle());
             Assert.Equal("CPU", meta.RootElement.GetProperty("hardware")[0].GetProperty("name").GetString());
             Assert.Equal("Package", meta.RootElement.GetProperty("sensors")[0].GetProperty("name").GetString());
-            Assert.Equal("classifier not implemented", health.RootElement.GetProperty("reason").GetString());
+            Assert.Equal("unmapped: cpu.temp.control", health.RootElement.GetProperty("reason").GetString());
         }
         finally
         {
@@ -51,7 +51,7 @@ public sealed class SamplerClientIntegrationTests
         }
     }
 
-    [Fact]
+    [AdminFact]
     public async Task RejectedPipeStoresNoFramesAndReportsIdentityMismatch()
     {
         using var identity = WindowsIdentity.GetCurrent();
@@ -83,7 +83,7 @@ public sealed class SamplerClientIntegrationTests
         }
     }
 
-    [Fact]
+    [AdminFact]
     public async Task RejectsWhenOwnerCheckFailsEvenIfImagePathMatches()
     {
         using var identity = WindowsIdentity.GetCurrent();
@@ -109,7 +109,7 @@ public sealed class SamplerClientIntegrationTests
         }
     }
 
-    [Fact]
+    [AdminFact]
     public async Task InvalidJsonFrameIsDroppedButTheConnectionStaysUpForTheNextFrame()
     {
         using var identity = WindowsIdentity.GetCurrent();

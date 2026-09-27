@@ -47,7 +47,7 @@ public sealed class SamplerPipeTests
         Assert.Equal(administrators, security.GetOwner(typeof(SecurityIdentifier)));
     }
 
-    [Fact]
+    [AdminFact]
     public async Task ProductionFactoryCreatesOutboundOnlyPipe()
     {
         using var identity = WindowsIdentity.GetCurrent();
@@ -72,7 +72,7 @@ public sealed class SamplerPipeTests
         Assert.False(client.CanWrite);
     }
 
-    [Fact]
+    [AdminFact]
     public void FirstPipeInstancePreventsASecondServer()
     {
         using var identity = WindowsIdentity.GetCurrent();

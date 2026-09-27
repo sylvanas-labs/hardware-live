@@ -1,0 +1,110 @@
+{
+  "roles": [
+    {
+      "sensorId": "/amdcpu/0/clock/10",
+      "role": "cpu.clock.core"
+    },
+    {
+      "sensorId": "/amdcpu/0/clock/11",
+      "role": "cpu.clock.core"
+    },
+    {
+      "sensorId": "/amdcpu/0/clock/12",
+      "role": "cpu.clock.effective.core"
+    },
+    {
+      "sensorId": "/amdcpu/0/clock/13",
+      "role": "cpu.clock.effective.core"
+    },
+    {
+      "sensorId": "/amdcpu/0/clock/14",
+      "role": "cpu.clock.effective.core"
+    },
+    {
+      "sensorId": "/amdcpu/0/clock/15",
+      "role": "cpu.clock.effective.core"
+    },
+    {
+      "sensorId": "/amdcpu/0/clock/7",
+      "role": "cpu.clock.avg"
+    },
+    {
+      "sensorId": "/amdcpu/0/clock/8",
+      "role": "cpu.clock.core"
+    },
+    {
+      "sensorId": "/amdcpu/0/clock/9",
+      "role": "cpu.clock.core"
+    },
+    {
+      "sensorId": "/amdcpu/0/load/1",
+      "role": "cpu.load.total"
+    },
+    {
+      "sensorId": "/amdcpu/0/load/2",
+      "role": "cpu.load.max"
+    },
+    {
+      "sensorId": "/amdcpu/0/load/3",
+      "role": "cpu.load.core"
+    },
+    {
+      "sensorId": "/amdcpu/0/load/4",
+      "role": "cpu.load.core"
+    },
+    {
+      "sensorId": "/amdcpu/0/load/5",
+      "role": "cpu.load.core"
+    },
+    {
+      "sensorId": "/amdcpu/0/load/6",
+      "role": "cpu.load.core"
+    },
+    {
+      "sensorId": "/gpu-nvidia/0/clock/22",
+      "role": "gpu.clock.core"
+    },
+    {
+      "sensorId": "/gpu-nvidia/0/clock/23",
+      "role": "gpu.clock.mem"
+    },
+    {
+      "sensorId": "/gpu-nvidia/0/load/19",
+      "role": "gpu.load.core"
+    },
+    {
+      "sensorId": "/gpu-nvidia/0/load/20",
+      "role": "gpu.load.mem"
+    },
+    {
+      "sensorId": "/gpu-nvidia/0/load/21",
+      "role": "gpu.power.pct"
+    },
+    {
+      "sensorId": "/gpu-nvidia/0/power/18",
+      "role": "gpu.power"
+    },
+    {
+      "sensorId": "/gpu-nvidia/0/smalldata/24",
+      "role": "gpu.vram.total"
+    },
+    {
+      "sensorId": "/gpu-nvidia/0/smalldata/25",
+      "role": "gpu.vram.used"
+    },
+    {
+      "sensorId": "/gpu-nvidia/0/temperature/16",
+      "role": "gpu.temp.core"
+    },
+    {
+      "sensorId": "/gpu-nvidia/0/temperature/17",
+      "role": "gpu.temp.mem"
+    }
+  ],
+  "limits": [],
+  "primaryCpuId": "/amdcpu/0",
+  "primaryGpuId": "/gpu-nvidia/0",
+  "missingMandatory": [
+    "cpu.temp.control"
+  ]
+}

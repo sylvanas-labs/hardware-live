@@ -1,0 +1,56 @@
+{
+  "roles": [
+    {
+      "sensorId": "/amdcpu/0/load/2",
+      "role": "cpu.load.total"
+    },
+    {
+      "sensorId": "/amdcpu/0/temperature/1",
+      "role": "cpu.temp.control"
+    },
+    {
+      "sensorId": "/gpu-nvidia/1/power/13",
+      "role": "gpu.power"
+    },
+    {
+      "sensorId": "/gpu-nvidia/1/smalldata/14",
+      "role": "gpu.vram.total"
+    },
+    {
+      "sensorId": "/gpu-nvidia/1/smalldata/15",
+      "role": "gpu.vram.used"
+    },
+    {
+      "sensorId": "/gpu-nvidia/1/temperature/11",
+      "role": "gpu.temp.core"
+    },
+    {
+      "sensorId": "/gpu-nvidia/1/temperature/12",
+      "role": "gpu.temp.mem"
+    },
+    {
+      "sensorId": "/lpc/chipA/0/fan/3",
+      "role": "fan.cpu"
+    },
+    {
+      "sensorId": "/lpc/chipA/0/temperature/4",
+      "role": "board.temp.system"
+    },
+    {
+      "sensorId": "/lpc/chipB/0/fan/5",
+      "role": "fan.cpu"
+    },
+    {
+      "sensorId": "/lpc/chipB/0/fan/7",
+      "role": "fan.pump"
+    },
+    {
+      "sensorId": "/lpc/chipB/0/temperature/6",
+      "role": "board.temp.system"
+    }
+  ],
+  "limits": [],
+  "primaryCpuId": "/amdcpu/0",
+  "primaryGpuId": "/gpu-nvidia/1",
+  "missingMandatory": []
+}

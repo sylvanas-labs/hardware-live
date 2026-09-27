@@ -50,7 +50,7 @@
     },
     {
       "id": "/memory/dimm/3",
-      "name": "G Skill Intl - F5-6000J3636F32G\r\u0000\u0000\u0000\u0000\u001AA\u001AA\u001AA\u0000} (#3)",
+      "name": "G Skill Intl - F5-6000J3636F32G\r\u0000\u0000\u0000\u0000\u001aA\u001aA\u001aA\u0000} (#3)",
       "type": "Memory",
       "parentId": null
     },
@@ -275,7 +275,7 @@
     {
       "id": "/lpc/it87952e/0/voltage/2",
       "hardwareId": "/lpc/it87952e/0",
-      "name": "Chipset \u002B0.82V",
+      "name": "Chipset +0.82V",
       "type": "Voltage",
       "value": 1.848,
       "min": 1.848,
@@ -302,7 +302,7 @@
     {
       "id": "/lpc/it87952e/0/voltage/5",
       "hardwareId": "/lpc/it87952e/0",
-      "name": "Chipset \u002B1.8V",
+      "name": "Chipset +1.8V",
       "type": "Voltage",
       "value": 1.067,
       "min": 1.067,
@@ -320,7 +320,7 @@
     {
       "id": "/lpc/it87952e/0/voltage/7",
       "hardwareId": "/lpc/it87952e/0",
-      "name": "\u002B3V Standby",
+      "name": "+3V Standby",
       "type": "Voltage",
       "value": 3.4100003,
       "min": 3.4100003,
@@ -1902,7 +1902,7 @@
       "max": 5924
     },
     {
-      "id": "/gpu-nvidia/0/load/3",
+      "id": "/gpu-nvidia/0/load/3~2",
       "hardwareId": "/gpu-nvidia/0",
       "name": "GPU Memory",
       "type": "Load",
@@ -2043,7 +2043,7 @@
       "type": "Load",
       "value": 0,
       "min": 0,
-      "max": 5.4008122E-08
+      "max": 5.4008122e-08
     },
     {
       "id": "/nvme/2/load/52",
@@ -2052,7 +2052,7 @@
       "type": "Load",
       "value": 0,
       "min": 0,
-      "max": 2.8703901E-08
+      "max": 2.8703901e-08
     },
     {
       "id": "/nvme/2/load/53",
@@ -2232,7 +2232,7 @@
       "type": "Load",
       "value": 0,
       "min": 0,
-      "max": 1.6544544E-05
+      "max": 1.6544544e-05
     },
     {
       "id": "/nvme/3/load/52",
@@ -2240,7 +2240,7 @@
       "name": "Write Activity",
       "type": "Load",
       "value": 3.0632288,
-      "min": 4.1638283E-05,
+      "min": 4.1638283e-05,
       "max": 3.0632288
     },
     {
@@ -2376,7 +2376,7 @@
       "type": "Load",
       "value": 0,
       "min": 0,
-      "max": 5.648964E-10
+      "max": 5.648964e-10
     },
     {
       "id": "/ssd/1/load/52",
@@ -2385,7 +2385,7 @@
       "type": "Load",
       "value": 0,
       "min": 0,
-      "max": 1.3628977E-10
+      "max": 1.3628977e-10
     },
     {
       "id": "/ssd/1/load/53",
@@ -2475,7 +2475,7 @@
       "type": "Load",
       "value": 0,
       "min": 0,
-      "max": 2.0405535E-09
+      "max": 2.0405535e-09
     },
     {
       "id": "/ssd/0/load/52",
@@ -2484,7 +2484,7 @@
       "type": "Load",
       "value": 0,
       "min": 0,
-      "max": 4.1617862E-10
+      "max": 4.1617862e-10
     },
     {
       "id": "/ssd/0/load/53",

@@ -8,7 +8,7 @@ namespace HardwareLive.Tests;
 
 public sealed class ProcessImageVerifierTests
 {
-    [Fact]
+    [AdminFact]
     public async Task VerifiesTheActualServerProcessImage()
     {
         using var identity = WindowsIdentity.GetCurrent();
@@ -31,7 +31,7 @@ public sealed class ProcessImageVerifierTests
         Assert.False(verifier.IsExpectedServer(client, Path.Combine(Path.GetTempPath(), "different.exe")));
     }
 
-    [Fact]
+    [AdminFact]
     public async Task AcceptsAPipeOwnedByBuiltinAdministrators()
     {
         using var identity = WindowsIdentity.GetCurrent();

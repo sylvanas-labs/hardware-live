@@ -41,9 +41,11 @@ public sealed class HardwareSensorSampler : ISensorFrameSampler
 
         var hardware = new List<HardwareInfo>();
         var sensors = new List<SensorReading>();
+        var hardwareIds = new UniqueIds();
+        var sensorIds = new UniqueIds();
         foreach (var item in _computer.Hardware)
         {
-            Flatten(item, parentId: null, hardware, sensors);
+            Flatten(item, parentId: null, hardware, sensors, hardwareIds, sensorIds);
         }
 
         return new SensorFrame(
@@ -72,15 +74,17 @@ public sealed class HardwareSensorSampler : ISensorFrameSampler
         IHardware item,
         string? parentId,
         ICollection<HardwareInfo> hardware,
-        ICollection<SensorReading> sensors)
+        ICollection<SensorReading> sensors,
+        UniqueIds hardwareIds,
+        UniqueIds sensorIds)
     {
-        var hardwareId = item.Identifier.ToString();
+        var hardwareId = hardwareIds.MakeUnique(item.Identifier.ToString());
         hardware.Add(new HardwareInfo(hardwareId, item.Name, item.HardwareType.ToString(), parentId));
 
         foreach (var sensor in item.Sensors)
         {
             sensors.Add(new SensorReading(
-                sensor.Identifier.ToString(),
+                sensorIds.MakeUnique(sensor.Identifier.ToString()),
                 hardwareId,
                 sensor.Name,
                 sensor.SensorType.ToString(),
@@ -91,7 +95,7 @@ public sealed class HardwareSensorSampler : ISensorFrameSampler
 
         foreach (var child in item.SubHardware)
         {
-            Flatten(child, hardwareId, hardware, sensors);
+            Flatten(child, hardwareId, hardware, sensors, hardwareIds, sensorIds);
         }
     }
 

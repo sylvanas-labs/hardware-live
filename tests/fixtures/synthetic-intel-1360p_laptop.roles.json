@@ -1,0 +1,117 @@
+{
+  "roles": [
+    {
+      "sensorId": "/battery/main_bat1/level/19",
+      "role": "battery.charge"
+    },
+    {
+      "sensorId": "/battery/main_bat1/level/20",
+      "role": "battery.health"
+    },
+    {
+      "sensorId": "/battery/main_bat1/power/21",
+      "role": "battery.rate"
+    },
+    {
+      "sensorId": "/battery/main_bat1/temperature/22",
+      "role": "battery.temp"
+    },
+    {
+      "sensorId": "/gpu-intel-integrated/0/clock/16",
+      "role": "igpu.clock.core"
+    },
+    {
+      "sensorId": "/gpu-intel-integrated/0/load/15",
+      "role": "igpu.load.core"
+    },
+    {
+      "sensorId": "/gpu-intel-integrated/0/power/14",
+      "role": "igpu.power"
+    },
+    {
+      "sensorId": "/gpu-intel-integrated/0/temperature/13",
+      "role": "igpu.temp.core"
+    },
+    {
+      "sensorId": "/intelcpu/0/load/12",
+      "role": "cpu.load.total"
+    },
+    {
+      "sensorId": "/intelcpu/0/power/10",
+      "role": "cpu.power.package"
+    },
+    {
+      "sensorId": "/intelcpu/0/temperature/1",
+      "role": "cpu.temp.control"
+    },
+    {
+      "sensorId": "/intelcpu/0/temperature/2",
+      "role": "cpu.temp.core"
+    },
+    {
+      "sensorId": "/intelcpu/0/temperature/3",
+      "role": "cpu.temp.core"
+    },
+    {
+      "sensorId": "/intelcpu/0/temperature/4",
+      "role": "cpu.temp.core"
+    },
+    {
+      "sensorId": "/intelcpu/0/temperature/5",
+      "role": "cpu.temp.core"
+    },
+    {
+      "sensorId": "/intelcpu/0/voltage/11",
+      "role": "cpu.voltage.core"
+    },
+    {
+      "sensorId": "/nvme/0/temperature/24",
+      "role": "storage.temp"
+    },
+    {
+      "sensorId": "/ram/data/28",
+      "role": "ram.used"
+    },
+    {
+      "sensorId": "/ram/data/29",
+      "role": "ram.available"
+    },
+    {
+      "sensorId": "/ram/load/27",
+      "role": "ram.load"
+    },
+    {
+      "sensorId": "/vram/load/30",
+      "role": "pagefile.load"
+    }
+  ],
+  "limits": [
+    {
+      "sensorId": "/intelcpu/0/temperature/6",
+      "kind": "tjmaxDistance"
+    },
+    {
+      "sensorId": "/intelcpu/0/temperature/7",
+      "kind": "tjmaxDistance"
+    },
+    {
+      "sensorId": "/intelcpu/0/temperature/8",
+      "kind": "tjmaxDistance"
+    },
+    {
+      "sensorId": "/intelcpu/0/temperature/9",
+      "kind": "tjmaxDistance"
+    },
+    {
+      "sensorId": "/nvme/0/temperature/25",
+      "kind": "warning"
+    },
+    {
+      "sensorId": "/nvme/0/temperature/26",
+      "kind": "critical"
+    }
+  ],
+  "primaryCpuId": "/intelcpu/0",
+  "primaryGpuId": null,
+  "missingMandatory": []
+}

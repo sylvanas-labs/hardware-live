@@ -39,9 +39,15 @@ public static class FrameValidator
             return false;
         }
 
+        // Ids must be unique: the store and classifier key everything by id. The sampler
+        // de-duplicates LHM's colliding ids (see UniqueIds), so a duplicate here means a
+        // malformed or foreign frame.
+        var hardwareIds = new HashSet<string>(StringComparer.Ordinal);
+        var sensorIds = new HashSet<string>(StringComparer.Ordinal);
+
         foreach (var hardware in frame.Hardware)
         {
-            if (hardware is null)
+            if (hardware is null || !hardwareIds.Add(hardware.Id ?? string.Empty))
             {
                 return false;
             }
@@ -59,7 +65,7 @@ public static class FrameValidator
 
         foreach (var sensor in frame.Sensors)
         {
-            if (sensor is null)
+            if (sensor is null || !sensorIds.Add(sensor.Id ?? string.Empty))
             {
                 return false;
             }

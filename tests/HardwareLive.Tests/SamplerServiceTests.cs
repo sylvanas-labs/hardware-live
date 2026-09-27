@@ -6,7 +6,7 @@ namespace HardwareLive.Tests;
 
 public sealed class SamplerServiceTests
 {
-    [Fact]
+    [AdminFact]
     public async Task ExistingPerUserPipeReturnsExitCodeThree()
     {
         using var identity = WindowsIdentity.GetCurrent();

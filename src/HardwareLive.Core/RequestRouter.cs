@@ -2,6 +2,8 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
+using System.Text.Json.Serialization;
+using HardwareLive.Core.Classification;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.WebUtilities;
 
@@ -9,11 +11,19 @@ namespace HardwareLive.Core;
 
 internal sealed class RequestRouter
 {
-    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
+    private static readonly JsonSerializerOptions JsonOptions = CreateJsonOptions();
     private readonly byte[] _token;
     private readonly string _tokenText;
     private readonly InMemoryLayoutStore _layouts;
     private readonly ITelemetrySource _telemetry;
+    private readonly ClassificationCache _classification = new();
+
+    private static JsonSerializerOptions CreateJsonOptions()
+    {
+        var options = new JsonSerializerOptions(JsonSerializerDefaults.Web);
+        options.Converters.Add(new JsonStringEnumConverter());
+        return options;
+    }
 
     public RequestRouter(
         byte[] token,
@@ -103,6 +113,7 @@ internal sealed class RequestRouter
         if (path == "/api/meta")
         {
             var frame = _telemetry.LatestFrame;
+            var classification = _classification.Classify(frame);
             await WriteJson(context, new
             {
                 hardware = frame?.Hardware ?? [],
@@ -116,17 +127,36 @@ internal sealed class RequestRouter
                 pawnIoInstalled = frame?.PawnIoInstalled ?? false,
                 elevated = frame?.Elevated ?? false,
                 lhmVersion = frame?.LhmVersion ?? string.Empty,
+                roles = classification.Roles,
+                limits = classification.Limits,
+                primaryCpuId = classification.PrimaryCpuId,
+                primaryGpuId = classification.PrimaryGpuId,
+                missingMandatory = classification.MissingMandatory,
             });
             return;
         }
 
-        var reason = _telemetry.HasSamplerIdentityMismatch
-            ? "sampler identity mismatch"
-            : _telemetry.LatestFrame is null
-                ? "sampler not running"
-                : _telemetry.IsStale
-                    ? "sampler stale"
-                    : "classifier not implemented";
+        string reason;
+        if (_telemetry.HasSamplerIdentityMismatch)
+        {
+            reason = "sampler identity mismatch";
+        }
+        else if (_telemetry.LatestFrame is null)
+        {
+            reason = "sampler not running";
+        }
+        else if (_telemetry.IsStale)
+        {
+            reason = "sampler stale";
+        }
+        else
+        {
+            var missing = _classification.Classify(_telemetry.LatestFrame).MissingMandatory;
+            reason = missing.Count > 0
+                ? $"unmapped: {string.Join(", ", missing)}"
+                : "analysis not implemented";
+        }
+
         await WriteJson(context, new { status = "UNKNOWN", reason });
     }
 

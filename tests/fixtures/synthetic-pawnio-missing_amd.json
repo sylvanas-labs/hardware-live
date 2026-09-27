@@ -1,0 +1,250 @@
+{
+  "_synthetic": "generated from LHM 0.9.6 source names; replace with a real --dump",
+  "version": 1,
+  "sequence": 1,
+  "timestampUnixMs": 1790000000000,
+  "pawnIoInstalled": false,
+  "elevated": true,
+  "lhmVersion": "0.9.6.0",
+  "hardware": [
+    {
+      "id": "/amdcpu/0",
+      "name": "AMD Ryzen 9 7950X",
+      "type": "Cpu",
+      "parentId": null
+    },
+    {
+      "id": "/gpu-nvidia/0",
+      "name": "NVIDIA GeForce RTX 4080",
+      "type": "GpuNvidia",
+      "parentId": null
+    }
+  ],
+  "sensors": [
+    {
+      "id": "/amdcpu/0/load/1",
+      "hardwareId": "/amdcpu/0",
+      "name": "CPU Total",
+      "type": "Load",
+      "value": 18.0,
+      "min": 18.0,
+      "max": 18.0
+    },
+    {
+      "id": "/amdcpu/0/load/2",
+      "hardwareId": "/amdcpu/0",
+      "name": "CPU Core Max",
+      "type": "Load",
+      "value": 40.0,
+      "min": 40.0,
+      "max": 40.0
+    },
+    {
+      "id": "/amdcpu/0/load/3",
+      "hardwareId": "/amdcpu/0",
+      "name": "CPU Core #1",
+      "type": "Load",
+      "value": 11.0,
+      "min": 11.0,
+      "max": 11.0
+    },
+    {
+      "id": "/amdcpu/0/load/4",
+      "hardwareId": "/amdcpu/0",
+      "name": "CPU Core #2",
+      "type": "Load",
+      "value": 12.0,
+      "min": 12.0,
+      "max": 12.0
+    },
+    {
+      "id": "/amdcpu/0/load/5",
+      "hardwareId": "/amdcpu/0",
+      "name": "CPU Core #3",
+      "type": "Load",
+      "value": 13.0,
+      "min": 13.0,
+      "max": 13.0
+    },
+    {
+      "id": "/amdcpu/0/load/6",
+      "hardwareId": "/amdcpu/0",
+      "name": "CPU Core #4",
+      "type": "Load",
+      "value": 14.0,
+      "min": 14.0,
+      "max": 14.0
+    },
+    {
+      "id": "/amdcpu/0/clock/7",
+      "hardwareId": "/amdcpu/0",
+      "name": "Cores (Average)",
+      "type": "Clock",
+      "value": 4200.0,
+      "min": 4200.0,
+      "max": 4200.0
+    },
+    {
+      "id": "/amdcpu/0/clock/8",
+      "hardwareId": "/amdcpu/0",
+      "name": "Core #1",
+      "type": "Clock",
+      "value": 4500.0,
+      "min": 4500.0,
+      "max": 4500.0
+    },
+    {
+      "id": "/amdcpu/0/clock/9",
+      "hardwareId": "/amdcpu/0",
+      "name": "Core #2",
+      "type": "Clock",
+      "value": 4500.0,
+      "min": 4500.0,
+      "max": 4500.0
+    },
+    {
+      "id": "/amdcpu/0/clock/10",
+      "hardwareId": "/amdcpu/0",
+      "name": "Core #3",
+      "type": "Clock",
+      "value": 4500.0,
+      "min": 4500.0,
+      "max": 4500.0
+    },
+    {
+      "id": "/amdcpu/0/clock/11",
+      "hardwareId": "/amdcpu/0",
+      "name": "Core #4",
+      "type": "Clock",
+      "value": 4500.0,
+      "min": 4500.0,
+      "max": 4500.0
+    },
+    {
+      "id": "/amdcpu/0/clock/12",
+      "hardwareId": "/amdcpu/0",
+      "name": "Core #1 (Effective)",
+      "type": "Clock",
+      "value": 1201.0,
+      "min": 1201.0,
+      "max": 1201.0
+    },
+    {
+      "id": "/amdcpu/0/clock/13",
+      "hardwareId": "/amdcpu/0",
+      "name": "Core #2 (Effective)",
+      "type": "Clock",
+      "value": 1202.0,
+      "min": 1202.0,
+      "max": 1202.0
+    },
+    {
+      "id": "/amdcpu/0/clock/14",
+      "hardwareId": "/amdcpu/0",
+      "name": "Core #3 (Effective)",
+      "type": "Clock",
+      "value": 1203.0,
+      "min": 1203.0,
+      "max": 1203.0
+    },
+    {
+      "id": "/amdcpu/0/clock/15",
+      "hardwareId": "/amdcpu/0",
+      "name": "Core #4 (Effective)",
+      "type": "Clock",
+      "value": 1204.0,
+      "min": 1204.0,
+      "max": 1204.0
+    },
+    {
+      "id": "/gpu-nvidia/0/temperature/16",
+      "hardwareId": "/gpu-nvidia/0",
+      "name": "GPU Core",
+      "type": "Temperature",
+      "value": 45.0,
+      "min": 45.0,
+      "max": 45.0
+    },
+    {
+      "id": "/gpu-nvidia/0/temperature/17",
+      "hardwareId": "/gpu-nvidia/0",
+      "name": "GPU Memory Junction",
+      "type": "Temperature",
+      "value": 50.0,
+      "min": 50.0,
+      "max": 50.0
+    },
+    {
+      "id": "/gpu-nvidia/0/power/18",
+      "hardwareId": "/gpu-nvidia/0",
+      "name": "GPU Package",
+      "type": "Power",
+      "value": 60.0,
+      "min": 60.0,
+      "max": 60.0
+    },
+    {
+      "id": "/gpu-nvidia/0/load/19",
+      "hardwareId": "/gpu-nvidia/0",
+      "name": "GPU Core",
+      "type": "Load",
+      "value": 5.0,
+      "min": 5.0,
+      "max": 5.0
+    },
+    {
+      "id": "/gpu-nvidia/0/load/20",
+      "hardwareId": "/gpu-nvidia/0",
+      "name": "GPU Memory Controller",
+      "type": "Load",
+      "value": 8.0,
+      "min": 8.0,
+      "max": 8.0
+    },
+    {
+      "id": "/gpu-nvidia/0/load/21",
+      "hardwareId": "/gpu-nvidia/0",
+      "name": "GPU Board Power",
+      "type": "Load",
+      "value": 25.0,
+      "min": 25.0,
+      "max": 25.0
+    },
+    {
+      "id": "/gpu-nvidia/0/clock/22",
+      "hardwareId": "/gpu-nvidia/0",
+      "name": "GPU Core",
+      "type": "Clock",
+      "value": 300.0,
+      "min": 300.0,
+      "max": 300.0
+    },
+    {
+      "id": "/gpu-nvidia/0/clock/23",
+      "hardwareId": "/gpu-nvidia/0",
+      "name": "GPU Memory",
+      "type": "Clock",
+      "value": 400.0,
+      "min": 400.0,
+      "max": 400.0
+    },
+    {
+      "id": "/gpu-nvidia/0/smalldata/24",
+      "hardwareId": "/gpu-nvidia/0",
+      "name": "GPU Memory Total",
+      "type": "SmallData",
+      "value": 16384.0,
+      "min": 16384.0,
+      "max": 16384.0
+    },
+    {
+      "id": "/gpu-nvidia/0/smalldata/25",
+      "hardwareId": "/gpu-nvidia/0",
+      "name": "GPU Memory Used",
+      "type": "SmallData",
+      "value": 2048.0,
+      "min": 2048.0,
+      "max": 2048.0
+    }
+  ]
+}

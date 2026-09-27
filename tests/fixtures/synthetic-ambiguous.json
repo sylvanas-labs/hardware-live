@@ -1,0 +1,184 @@
+{
+  "_synthetic": "generated from LHM 0.9.6 source names; replace with a real --dump",
+  "version": 1,
+  "sequence": 1,
+  "timestampUnixMs": 1790000000000,
+  "pawnIoInstalled": true,
+  "elevated": true,
+  "lhmVersion": "0.9.6.0",
+  "hardware": [
+    {
+      "id": "/lpc/chipA/0",
+      "name": "Nuvoton NCT6687D",
+      "type": "SuperIO",
+      "parentId": "/motherboard"
+    },
+    {
+      "id": "/lpc/chipB/0",
+      "name": "Nuvoton NCT6687D (Secondary)",
+      "type": "SuperIO",
+      "parentId": "/motherboard"
+    },
+    {
+      "id": "/motherboard",
+      "name": "ASUS ROG Crosshair X870E",
+      "type": "Motherboard",
+      "parentId": null
+    },
+    {
+      "id": "/amdcpu/0",
+      "name": "AMD Ryzen 9 9950X3D",
+      "type": "Cpu",
+      "parentId": null
+    },
+    {
+      "id": "/gpu-nvidia/0",
+      "name": "NVIDIA GeForce RTX <script>\u0000\ufffd Ti",
+      "type": "GpuNvidia",
+      "parentId": null
+    },
+    {
+      "id": "/gpu-nvidia/1",
+      "name": "NVIDIA GeForce RTX 5080",
+      "type": "GpuNvidia",
+      "parentId": null
+    }
+  ],
+  "sensors": [
+    {
+      "id": "/amdcpu/0/temperature/1",
+      "hardwareId": "/amdcpu/0",
+      "name": "Core (Tctl/Tdie)",
+      "type": "Temperature",
+      "value": 52.0,
+      "min": 52.0,
+      "max": 52.0
+    },
+    {
+      "id": "/amdcpu/0/load/2",
+      "hardwareId": "/amdcpu/0",
+      "name": "CPU Total",
+      "type": "Load",
+      "value": 20.0,
+      "min": 20.0,
+      "max": 20.0
+    },
+    {
+      "id": "/lpc/chipA/0/fan/3",
+      "hardwareId": "/lpc/chipA/0",
+      "name": "CPU Fan",
+      "type": "Fan",
+      "value": 900.0,
+      "min": 900.0,
+      "max": 900.0
+    },
+    {
+      "id": "/lpc/chipA/0/temperature/4",
+      "hardwareId": "/lpc/chipA/0",
+      "name": "System #1",
+      "type": "Temperature",
+      "value": 34.0,
+      "min": 34.0,
+      "max": 34.0
+    },
+    {
+      "id": "/lpc/chipB/0/fan/5",
+      "hardwareId": "/lpc/chipB/0",
+      "name": "CPU Fan",
+      "type": "Fan",
+      "value": 950.0,
+      "min": 950.0,
+      "max": 950.0
+    },
+    {
+      "id": "/lpc/chipB/0/temperature/6",
+      "hardwareId": "/lpc/chipB/0",
+      "name": "System #1",
+      "type": "Temperature",
+      "value": 36.0,
+      "min": 36.0,
+      "max": 36.0
+    },
+    {
+      "id": "/lpc/chipB/0/fan/7",
+      "hardwareId": "/lpc/chipB/0",
+      "name": "System Fan #2 / Pump",
+      "type": "Fan",
+      "value": 1400.0,
+      "min": 1400.0,
+      "max": 1400.0
+    },
+    {
+      "id": "/gpu-nvidia/0/temperature/8",
+      "hardwareId": "/gpu-nvidia/0",
+      "name": "GPU Core",
+      "type": "Temperature",
+      "value": 42.0,
+      "min": 42.0,
+      "max": 42.0
+    },
+    {
+      "id": "/gpu-nvidia/0/smalldata/9",
+      "hardwareId": "/gpu-nvidia/0",
+      "name": "GPU Memory Total",
+      "type": "SmallData",
+      "value": 12288.0,
+      "min": 12288.0,
+      "max": 12288.0
+    },
+    {
+      "id": "/gpu-nvidia/0/smalldata/10",
+      "hardwareId": "/gpu-nvidia/0",
+      "name": "GPU Memory Used",
+      "type": "SmallData",
+      "value": 3000.0,
+      "min": 3000.0,
+      "max": 3000.0
+    },
+    {
+      "id": "/gpu-nvidia/1/temperature/11",
+      "hardwareId": "/gpu-nvidia/1",
+      "name": "GPU Core",
+      "type": "Temperature",
+      "value": 40.0,
+      "min": 40.0,
+      "max": 40.0
+    },
+    {
+      "id": "/gpu-nvidia/1/temperature/12",
+      "hardwareId": "/gpu-nvidia/1",
+      "name": "GPU Memory Junction",
+      "type": "Temperature",
+      "value": 46.0,
+      "min": 46.0,
+      "max": 46.0
+    },
+    {
+      "id": "/gpu-nvidia/1/power/13",
+      "hardwareId": "/gpu-nvidia/1",
+      "name": "GPU Package",
+      "type": "Power",
+      "value": 210.0,
+      "min": 210.0,
+      "max": 210.0
+    },
+    {
+      "id": "/gpu-nvidia/1/smalldata/14",
+      "hardwareId": "/gpu-nvidia/1",
+      "name": "GPU Memory Total",
+      "type": "SmallData",
+      "value": 24576.0,
+      "min": 24576.0,
+      "max": 24576.0
+    },
+    {
+      "id": "/gpu-nvidia/1/smalldata/15",
+      "hardwareId": "/gpu-nvidia/1",
+      "name": "GPU Memory Used",
+      "type": "SmallData",
+      "value": 6000.0,
+      "min": 6000.0,
+      "max": 6000.0
+    }
+  ]
+}

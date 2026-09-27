@@ -32,7 +32,7 @@ public sealed class SamplerFileLogTests : IDisposable
         Assert.False(Directory.Exists(_baseDirectory));
     }
 
-    [Fact]
+    [AdminFact]
     public void PrivilegedProcessCreatesTheDirectoryAndWritesTheMessage()
     {
         var log = new SamplerFileLog(_baseDirectory, isPrivilegedOverride: true);
@@ -67,7 +67,7 @@ public sealed class SamplerFileLogTests : IDisposable
         Assert.True(new FileInfo(logPath).Length < 1024 * 1024);
     }
 
-    [Fact]
+    [AdminFact]
     public void IdenticalMessagesAreRateLimitedToOncePerWindowThenReportRepeatCount()
     {
         var clock = new ManualTimeProvider(new DateTimeOffset(2026, 9, 27, 0, 0, 0, TimeSpan.Zero));

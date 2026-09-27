@@ -55,7 +55,7 @@ public sealed class TelemetryApiTests
         Assert.True(meta.RootElement.GetProperty("elevated").GetBoolean());
         Assert.Equal("0.9.6.0", meta.RootElement.GetProperty("lhmVersion").GetString());
         Assert.Equal("UNKNOWN", health.RootElement.GetProperty("status").GetString());
-        Assert.Equal("classifier not implemented", health.RootElement.GetProperty("reason").GetString());
+        Assert.Equal("unmapped: cpu.temp.control", health.RootElement.GetProperty("reason").GetString());
     }
 
     [Fact]

@@ -1,0 +1,706 @@
+{
+  "_synthetic": "generated from LHM 0.9.6 source names; replace with a real --dump",
+  "version": 1,
+  "sequence": 1,
+  "timestampUnixMs": 1790000000000,
+  "pawnIoInstalled": true,
+  "elevated": true,
+  "lhmVersion": "0.9.6.0",
+  "hardware": [
+    {
+      "id": "/motherboard",
+      "name": "MSI MPG Z790 Carbon",
+      "type": "Motherboard",
+      "parentId": null
+    },
+    {
+      "id": "/lpc/nct6798/0",
+      "name": "Nuvoton NCT6798D",
+      "type": "SuperIO",
+      "parentId": "/motherboard"
+    },
+    {
+      "id": "/intelcpu/0",
+      "name": "Intel Core i7-13700K",
+      "type": "Cpu",
+      "parentId": null
+    },
+    {
+      "id": "/gpu-amd/0",
+      "name": "AMD Radeon RX 7900 XTX",
+      "type": "GpuAmd",
+      "parentId": null
+    },
+    {
+      "id": "/ram",
+      "name": "Total Memory",
+      "type": "Memory",
+      "parentId": null
+    },
+    {
+      "id": "/vram",
+      "name": "Virtual Memory",
+      "type": "Memory",
+      "parentId": null
+    },
+    {
+      "id": "/memory/dimm/1",
+      "name": "Corsair CMK32GX5M2B6000 (#1)",
+      "type": "Memory",
+      "parentId": null
+    },
+    {
+      "id": "/memory/dimm/2",
+      "name": "Corsair CMK32GX5M2B6000 (#2)",
+      "type": "Memory",
+      "parentId": null
+    },
+    {
+      "id": "/nvme/0",
+      "name": "Samsung SSD 990 PRO 2TB",
+      "type": "Storage",
+      "parentId": null
+    }
+  ],
+  "sensors": [
+    {
+      "id": "/intelcpu/0/temperature/1",
+      "hardwareId": "/intelcpu/0",
+      "name": "CPU Package",
+      "type": "Temperature",
+      "value": 62.0,
+      "min": 62.0,
+      "max": 62.0
+    },
+    {
+      "id": "/intelcpu/0/temperature/2",
+      "hardwareId": "/intelcpu/0",
+      "name": "Core Max",
+      "type": "Temperature",
+      "value": 58.0,
+      "min": 58.0,
+      "max": 58.0
+    },
+    {
+      "id": "/intelcpu/0/temperature/3",
+      "hardwareId": "/intelcpu/0",
+      "name": "Core Average",
+      "type": "Temperature",
+      "value": 50.0,
+      "min": 50.0,
+      "max": 50.0
+    },
+    {
+      "id": "/intelcpu/0/temperature/4",
+      "hardwareId": "/intelcpu/0",
+      "name": "CPU Core #1",
+      "type": "Temperature",
+      "value": 46.0,
+      "min": 46.0,
+      "max": 46.0
+    },
+    {
+      "id": "/intelcpu/0/temperature/5",
+      "hardwareId": "/intelcpu/0",
+      "name": "CPU Core #2",
+      "type": "Temperature",
+      "value": 47.0,
+      "min": 47.0,
+      "max": 47.0
+    },
+    {
+      "id": "/intelcpu/0/temperature/6",
+      "hardwareId": "/intelcpu/0",
+      "name": "CPU Core #3",
+      "type": "Temperature",
+      "value": 48.0,
+      "min": 48.0,
+      "max": 48.0
+    },
+    {
+      "id": "/intelcpu/0/temperature/7",
+      "hardwareId": "/intelcpu/0",
+      "name": "CPU Core #4",
+      "type": "Temperature",
+      "value": 49.0,
+      "min": 49.0,
+      "max": 49.0
+    },
+    {
+      "id": "/intelcpu/0/temperature/8",
+      "hardwareId": "/intelcpu/0",
+      "name": "CPU Core #5",
+      "type": "Temperature",
+      "value": 50.0,
+      "min": 50.0,
+      "max": 50.0
+    },
+    {
+      "id": "/intelcpu/0/temperature/9",
+      "hardwareId": "/intelcpu/0",
+      "name": "CPU Core #6",
+      "type": "Temperature",
+      "value": 51.0,
+      "min": 51.0,
+      "max": 51.0
+    },
+    {
+      "id": "/intelcpu/0/temperature/10",
+      "hardwareId": "/intelcpu/0",
+      "name": "CPU Core #7",
+      "type": "Temperature",
+      "value": 52.0,
+      "min": 52.0,
+      "max": 52.0
+    },
+    {
+      "id": "/intelcpu/0/temperature/11",
+      "hardwareId": "/intelcpu/0",
+      "name": "CPU Core #8",
+      "type": "Temperature",
+      "value": 53.0,
+      "min": 53.0,
+      "max": 53.0
+    },
+    {
+      "id": "/intelcpu/0/temperature/12",
+      "hardwareId": "/intelcpu/0",
+      "name": "CPU Core #9",
+      "type": "Temperature",
+      "value": 54.0,
+      "min": 54.0,
+      "max": 54.0
+    },
+    {
+      "id": "/intelcpu/0/temperature/13",
+      "hardwareId": "/intelcpu/0",
+      "name": "CPU Core #10",
+      "type": "Temperature",
+      "value": 55.0,
+      "min": 55.0,
+      "max": 55.0
+    },
+    {
+      "id": "/intelcpu/0/temperature/14",
+      "hardwareId": "/intelcpu/0",
+      "name": "CPU Core #11",
+      "type": "Temperature",
+      "value": 56.0,
+      "min": 56.0,
+      "max": 56.0
+    },
+    {
+      "id": "/intelcpu/0/temperature/15",
+      "hardwareId": "/intelcpu/0",
+      "name": "CPU Core #12",
+      "type": "Temperature",
+      "value": 57.0,
+      "min": 57.0,
+      "max": 57.0
+    },
+    {
+      "id": "/intelcpu/0/temperature/16",
+      "hardwareId": "/intelcpu/0",
+      "name": "CPU Core #13",
+      "type": "Temperature",
+      "value": 58.0,
+      "min": 58.0,
+      "max": 58.0
+    },
+    {
+      "id": "/intelcpu/0/temperature/17",
+      "hardwareId": "/intelcpu/0",
+      "name": "CPU Core #14",
+      "type": "Temperature",
+      "value": 59.0,
+      "min": 59.0,
+      "max": 59.0
+    },
+    {
+      "id": "/intelcpu/0/temperature/18",
+      "hardwareId": "/intelcpu/0",
+      "name": "CPU Core #15",
+      "type": "Temperature",
+      "value": 60.0,
+      "min": 60.0,
+      "max": 60.0
+    },
+    {
+      "id": "/intelcpu/0/temperature/19",
+      "hardwareId": "/intelcpu/0",
+      "name": "CPU Core #16",
+      "type": "Temperature",
+      "value": 61.0,
+      "min": 61.0,
+      "max": 61.0
+    },
+    {
+      "id": "/intelcpu/0/temperature/20",
+      "hardwareId": "/intelcpu/0",
+      "name": "CPU Core #1 Distance to TjMax",
+      "type": "Temperature",
+      "value": 39.5,
+      "min": 39.5,
+      "max": 39.5
+    },
+    {
+      "id": "/intelcpu/0/temperature/21",
+      "hardwareId": "/intelcpu/0",
+      "name": "CPU Core #2 Distance to TjMax",
+      "type": "Temperature",
+      "value": 39.0,
+      "min": 39.0,
+      "max": 39.0
+    },
+    {
+      "id": "/intelcpu/0/temperature/22",
+      "hardwareId": "/intelcpu/0",
+      "name": "CPU Core #3 Distance to TjMax",
+      "type": "Temperature",
+      "value": 38.5,
+      "min": 38.5,
+      "max": 38.5
+    },
+    {
+      "id": "/intelcpu/0/temperature/23",
+      "hardwareId": "/intelcpu/0",
+      "name": "CPU Core #4 Distance to TjMax",
+      "type": "Temperature",
+      "value": 38.0,
+      "min": 38.0,
+      "max": 38.0
+    },
+    {
+      "id": "/intelcpu/0/temperature/24",
+      "hardwareId": "/intelcpu/0",
+      "name": "CPU Core #5 Distance to TjMax",
+      "type": "Temperature",
+      "value": 37.5,
+      "min": 37.5,
+      "max": 37.5
+    },
+    {
+      "id": "/intelcpu/0/temperature/25",
+      "hardwareId": "/intelcpu/0",
+      "name": "CPU Core #6 Distance to TjMax",
+      "type": "Temperature",
+      "value": 37.0,
+      "min": 37.0,
+      "max": 37.0
+    },
+    {
+      "id": "/intelcpu/0/temperature/26",
+      "hardwareId": "/intelcpu/0",
+      "name": "CPU Core #7 Distance to TjMax",
+      "type": "Temperature",
+      "value": 36.5,
+      "min": 36.5,
+      "max": 36.5
+    },
+    {
+      "id": "/intelcpu/0/temperature/27",
+      "hardwareId": "/intelcpu/0",
+      "name": "CPU Core #8 Distance to TjMax",
+      "type": "Temperature",
+      "value": 36.0,
+      "min": 36.0,
+      "max": 36.0
+    },
+    {
+      "id": "/intelcpu/0/temperature/28",
+      "hardwareId": "/intelcpu/0",
+      "name": "CPU Core #9 Distance to TjMax",
+      "type": "Temperature",
+      "value": 35.5,
+      "min": 35.5,
+      "max": 35.5
+    },
+    {
+      "id": "/intelcpu/0/temperature/29",
+      "hardwareId": "/intelcpu/0",
+      "name": "CPU Core #10 Distance to TjMax",
+      "type": "Temperature",
+      "value": 35.0,
+      "min": 35.0,
+      "max": 35.0
+    },
+    {
+      "id": "/intelcpu/0/temperature/30",
+      "hardwareId": "/intelcpu/0",
+      "name": "CPU Core #11 Distance to TjMax",
+      "type": "Temperature",
+      "value": 34.5,
+      "min": 34.5,
+      "max": 34.5
+    },
+    {
+      "id": "/intelcpu/0/temperature/31",
+      "hardwareId": "/intelcpu/0",
+      "name": "CPU Core #12 Distance to TjMax",
+      "type": "Temperature",
+      "value": 34.0,
+      "min": 34.0,
+      "max": 34.0
+    },
+    {
+      "id": "/intelcpu/0/temperature/32",
+      "hardwareId": "/intelcpu/0",
+      "name": "CPU Core #13 Distance to TjMax",
+      "type": "Temperature",
+      "value": 33.5,
+      "min": 33.5,
+      "max": 33.5
+    },
+    {
+      "id": "/intelcpu/0/temperature/33",
+      "hardwareId": "/intelcpu/0",
+      "name": "CPU Core #14 Distance to TjMax",
+      "type": "Temperature",
+      "value": 33.0,
+      "min": 33.0,
+      "max": 33.0
+    },
+    {
+      "id": "/intelcpu/0/temperature/34",
+      "hardwareId": "/intelcpu/0",
+      "name": "CPU Core #15 Distance to TjMax",
+      "type": "Temperature",
+      "value": 32.5,
+      "min": 32.5,
+      "max": 32.5
+    },
+    {
+      "id": "/intelcpu/0/temperature/35",
+      "hardwareId": "/intelcpu/0",
+      "name": "CPU Core #16 Distance to TjMax",
+      "type": "Temperature",
+      "value": 32.0,
+      "min": 32.0,
+      "max": 32.0
+    },
+    {
+      "id": "/intelcpu/0/power/36",
+      "hardwareId": "/intelcpu/0",
+      "name": "CPU Package",
+      "type": "Power",
+      "value": 125.0,
+      "min": 125.0,
+      "max": 125.0
+    },
+    {
+      "id": "/intelcpu/0/power/37",
+      "hardwareId": "/intelcpu/0",
+      "name": "CPU Cores",
+      "type": "Power",
+      "value": 100.0,
+      "min": 100.0,
+      "max": 100.0
+    },
+    {
+      "id": "/intelcpu/0/voltage/38",
+      "hardwareId": "/intelcpu/0",
+      "name": "CPU Core",
+      "type": "Voltage",
+      "value": 1.1,
+      "min": 1.1,
+      "max": 1.1
+    },
+    {
+      "id": "/intelcpu/0/load/39",
+      "hardwareId": "/intelcpu/0",
+      "name": "CPU Total",
+      "type": "Load",
+      "value": 35.0,
+      "min": 35.0,
+      "max": 35.0
+    },
+    {
+      "id": "/gpu-amd/0/temperature/40",
+      "hardwareId": "/gpu-amd/0",
+      "name": "GPU Core",
+      "type": "Temperature",
+      "value": 55.0,
+      "min": 55.0,
+      "max": 55.0
+    },
+    {
+      "id": "/gpu-amd/0/temperature/41",
+      "hardwareId": "/gpu-amd/0",
+      "name": "GPU Hot Spot",
+      "type": "Temperature",
+      "value": 65.0,
+      "min": 65.0,
+      "max": 65.0
+    },
+    {
+      "id": "/gpu-amd/0/temperature/42",
+      "hardwareId": "/gpu-amd/0",
+      "name": "GPU Memory",
+      "type": "Temperature",
+      "value": 60.0,
+      "min": 60.0,
+      "max": 60.0
+    },
+    {
+      "id": "/gpu-amd/0/power/43",
+      "hardwareId": "/gpu-amd/0",
+      "name": "GPU Package",
+      "type": "Power",
+      "value": 250.0,
+      "min": 250.0,
+      "max": 250.0
+    },
+    {
+      "id": "/gpu-amd/0/power/44",
+      "hardwareId": "/gpu-amd/0",
+      "name": "GPU PPT",
+      "type": "Power",
+      "value": 260.0,
+      "min": 260.0,
+      "max": 260.0
+    },
+    {
+      "id": "/gpu-amd/0/load/45",
+      "hardwareId": "/gpu-amd/0",
+      "name": "GPU Core",
+      "type": "Load",
+      "value": 40.0,
+      "min": 40.0,
+      "max": 40.0
+    },
+    {
+      "id": "/gpu-amd/0/load/46",
+      "hardwareId": "/gpu-amd/0",
+      "name": "GPU Memory",
+      "type": "Load",
+      "value": 30.0,
+      "min": 30.0,
+      "max": 30.0
+    },
+    {
+      "id": "/gpu-amd/0/clock/47",
+      "hardwareId": "/gpu-amd/0",
+      "name": "GPU Core",
+      "type": "Clock",
+      "value": 2500.0,
+      "min": 2500.0,
+      "max": 2500.0
+    },
+    {
+      "id": "/gpu-amd/0/clock/48",
+      "hardwareId": "/gpu-amd/0",
+      "name": "GPU Memory",
+      "type": "Clock",
+      "value": 2400.0,
+      "min": 2400.0,
+      "max": 2400.0
+    },
+    {
+      "id": "/gpu-amd/0/fan/49",
+      "hardwareId": "/gpu-amd/0",
+      "name": "GPU Fan",
+      "type": "Fan",
+      "value": 1200.0,
+      "min": 1200.0,
+      "max": 1200.0
+    },
+    {
+      "id": "/gpu-amd/0/smalldata/50",
+      "hardwareId": "/gpu-amd/0",
+      "name": "GPU Memory Total",
+      "type": "SmallData",
+      "value": 24560.0,
+      "min": 24560.0,
+      "max": 24560.0
+    },
+    {
+      "id": "/gpu-amd/0/smalldata/51",
+      "hardwareId": "/gpu-amd/0",
+      "name": "GPU Memory Used",
+      "type": "SmallData",
+      "value": 8000.0,
+      "min": 8000.0,
+      "max": 8000.0
+    },
+    {
+      "id": "/lpc/nct6798/0/fan/52",
+      "hardwareId": "/lpc/nct6798/0",
+      "name": "CPU Fan",
+      "type": "Fan",
+      "value": 800.0,
+      "min": 800.0,
+      "max": 800.0
+    },
+    {
+      "id": "/lpc/nct6798/0/fan/53",
+      "hardwareId": "/lpc/nct6798/0",
+      "name": "Pump",
+      "type": "Fan",
+      "value": 1800.0,
+      "min": 1800.0,
+      "max": 1800.0
+    },
+    {
+      "id": "/lpc/nct6798/0/fan/54",
+      "hardwareId": "/lpc/nct6798/0",
+      "name": "System Fan #1",
+      "type": "Fan",
+      "value": 700.0,
+      "min": 700.0,
+      "max": 700.0
+    },
+    {
+      "id": "/lpc/nct6798/0/fan/55",
+      "hardwareId": "/lpc/nct6798/0",
+      "name": "System Fan #2",
+      "type": "Fan",
+      "value": 650.0,
+      "min": 650.0,
+      "max": 650.0
+    },
+    {
+      "id": "/lpc/nct6798/0/temperature/56",
+      "hardwareId": "/lpc/nct6798/0",
+      "name": "CPU",
+      "type": "Temperature",
+      "value": 40.0,
+      "min": 40.0,
+      "max": 40.0
+    },
+    {
+      "id": "/lpc/nct6798/0/temperature/57",
+      "hardwareId": "/lpc/nct6798/0",
+      "name": "Chipset",
+      "type": "Temperature",
+      "value": 45.0,
+      "min": 45.0,
+      "max": 45.0
+    },
+    {
+      "id": "/lpc/nct6798/0/temperature/58",
+      "hardwareId": "/lpc/nct6798/0",
+      "name": "VRM MOS",
+      "type": "Temperature",
+      "value": 55.0,
+      "min": 55.0,
+      "max": 55.0
+    },
+    {
+      "id": "/ram/load/59",
+      "hardwareId": "/ram",
+      "name": "Memory",
+      "type": "Load",
+      "value": 55.0,
+      "min": 55.0,
+      "max": 55.0
+    },
+    {
+      "id": "/ram/data/60",
+      "hardwareId": "/ram",
+      "name": "Memory Used",
+      "type": "Data",
+      "value": 16.0,
+      "min": 16.0,
+      "max": 16.0
+    },
+    {
+      "id": "/ram/data/61",
+      "hardwareId": "/ram",
+      "name": "Memory Available",
+      "type": "Data",
+      "value": 16.0,
+      "min": 16.0,
+      "max": 16.0
+    },
+    {
+      "id": "/vram/load/62",
+      "hardwareId": "/vram",
+      "name": "Memory",
+      "type": "Load",
+      "value": 10.0,
+      "min": 10.0,
+      "max": 10.0
+    },
+    {
+      "id": "/memory/dimm/1/temperature/63",
+      "hardwareId": "/memory/dimm/1",
+      "name": "DIMM #1",
+      "type": "Temperature",
+      "value": 38.0,
+      "min": 38.0,
+      "max": 38.0
+    },
+    {
+      "id": "/memory/dimm/1/temperature/64",
+      "hardwareId": "/memory/dimm/1",
+      "name": "Thermal Sensor High Limit",
+      "type": "Temperature",
+      "value": 55.0,
+      "min": 55.0,
+      "max": 55.0
+    },
+    {
+      "id": "/memory/dimm/1/temperature/65",
+      "hardwareId": "/memory/dimm/1",
+      "name": "Thermal Sensor Critical High Limit",
+      "type": "Temperature",
+      "value": 85.0,
+      "min": 85.0,
+      "max": 85.0
+    },
+    {
+      "id": "/memory/dimm/2/temperature/66",
+      "hardwareId": "/memory/dimm/2",
+      "name": "DIMM #2",
+      "type": "Temperature",
+      "value": 38.0,
+      "min": 38.0,
+      "max": 38.0
+    },
+    {
+      "id": "/memory/dimm/2/temperature/67",
+      "hardwareId": "/memory/dimm/2",
+      "name": "Thermal Sensor High Limit",
+      "type": "Temperature",
+      "value": 55.0,
+      "min": 55.0,
+      "max": 55.0
+    },
+    {
+      "id": "/memory/dimm/2/temperature/68",
+      "hardwareId": "/memory/dimm/2",
+      "name": "Thermal Sensor Critical High Limit",
+      "type": "Temperature",
+      "value": 85.0,
+      "min": 85.0,
+      "max": 85.0
+    },
+    {
+      "id": "/nvme/0/temperature/69",
+      "hardwareId": "/nvme/0",
+      "name": "Composite Temperature",
+      "type": "Temperature",
+      "value": 40.0,
+      "min": 40.0,
+      "max": 40.0
+    },
+    {
+      "id": "/nvme/0/temperature/70",
+      "hardwareId": "/nvme/0",
+      "name": "Warning Temperature",
+      "type": "Temperature",
+      "value": 70.0,
+      "min": 70.0,
+      "max": 70.0
+    },
+    {
+      "id": "/nvme/0/temperature/71",
+      "hardwareId": "/nvme/0",
+      "name": "Critical Temperature",
+      "type": "Temperature",
+      "value": 80.0,
+      "min": 80.0,
+      "max": 80.0
+    }
+  ]
+}

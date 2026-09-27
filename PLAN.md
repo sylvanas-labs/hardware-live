@@ -3,15 +3,14 @@
 Full spec: [docs/SPEC.md](docs/SPEC.md) (APPROVED r4).
 
 ## Now
-- [ ] Next: Soon step 1 (classifier + golden-role fixtures + UNKNOWN health)
+- [ ] Next: Soon step 1 (threshold profiles + analysis engine + rule tests)
 
 ## Soon (in order)
-1. Classifier (HardwareType > SensorType > Identifier > name) + golden-role fixtures (4 machines) + UNKNOWN health
-2. Threshold profiles + analysis engine ported from prototype + rule tests (incl. null/NaN)
-3. Widget grid UI: drag reorder (edit mode, keyboard), sensor picker + filters
-4. Presets (Overview/CPU/GPU/3D Gaming/Thermals/Cooling/Storage) + custom save/export/import in `layouts.json`
-5. FPS via PresentMon v2.6.0 (unelevated, Performance Log Users opt-in) + 3D Gaming preset wiring
-6. `install.ps1`/`uninstall.ps1`, with these requirements:
+1. Threshold profiles + analysis engine ported from prototype + rule tests (incl. null/NaN)
+2. Widget grid UI: drag reorder (edit mode, keyboard), sensor picker + filters
+3. Presets (Overview/CPU/GPU/3D Gaming/Thermals/Cooling/Storage) + custom save/export/import in `layouts.json`
+4. FPS via PresentMon v2.6.0 (unelevated, Performance Log Users opt-in) + 3D Gaming preset wiring
+5. `install.ps1`/`uninstall.ps1`, with these requirements:
    - Install to `Program Files\HardwareLive\{app,sampler}\`, kept as separate folders.
    - `HL-Sampler` task runs as **SYSTEM** with `--user-sid`; `HL-App` task runs unelevated.
    - Launcher opens `http://127.0.0.1:<port>`, not `localhost` (the server binds IPv4 loopback only).
@@ -25,6 +24,7 @@ Full spec: [docs/SPEC.md](docs/SPEC.md) (APPROVED r4).
 - Light theme polish, CSV export of a session, alert sounds
 
 ## Done
+- 2026-09-27 Classifier complete: sensor-to-role mapping (Type>SensorType>Identifier>Name), 5 golden-role fixtures, limit-sensor metadata, `/api/meta` roles + `/api/health` UNKNOWN(unmapped) reasons
 - 2026-09-27 Sampler complete: read-only LHM collection, one-way ACL pipe, verified client, telemetry APIs/store, and `--dump` fixture tool
 - 2026-09-27 Step 1 complete: .NET 10 WinExe scaffold, loopback-only Kestrel server, authenticated in-memory layout routes, and security tests
 - 2026-09-27 Spec approved (r4): public/MIT, unsigned v1, FPS in v1

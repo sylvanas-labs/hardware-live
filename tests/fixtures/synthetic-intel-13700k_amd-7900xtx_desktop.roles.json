@@ -1,0 +1,285 @@
+{
+  "roles": [
+    {
+      "sensorId": "/gpu-amd/0/clock/47",
+      "role": "gpu.clock.core"
+    },
+    {
+      "sensorId": "/gpu-amd/0/clock/48",
+      "role": "gpu.clock.mem"
+    },
+    {
+      "sensorId": "/gpu-amd/0/fan/49",
+      "role": "gpu.fan"
+    },
+    {
+      "sensorId": "/gpu-amd/0/load/45",
+      "role": "gpu.load.core"
+    },
+    {
+      "sensorId": "/gpu-amd/0/load/46",
+      "role": "gpu.load.mem"
+    },
+    {
+      "sensorId": "/gpu-amd/0/power/43",
+      "role": "gpu.power"
+    },
+    {
+      "sensorId": "/gpu-amd/0/smalldata/50",
+      "role": "gpu.vram.total"
+    },
+    {
+      "sensorId": "/gpu-amd/0/smalldata/51",
+      "role": "gpu.vram.used"
+    },
+    {
+      "sensorId": "/gpu-amd/0/temperature/40",
+      "role": "gpu.temp.core"
+    },
+    {
+      "sensorId": "/gpu-amd/0/temperature/41",
+      "role": "gpu.temp.hotspot"
+    },
+    {
+      "sensorId": "/gpu-amd/0/temperature/42",
+      "role": "gpu.temp.mem"
+    },
+    {
+      "sensorId": "/intelcpu/0/load/39",
+      "role": "cpu.load.total"
+    },
+    {
+      "sensorId": "/intelcpu/0/power/36",
+      "role": "cpu.power.package"
+    },
+    {
+      "sensorId": "/intelcpu/0/temperature/1",
+      "role": "cpu.temp.control"
+    },
+    {
+      "sensorId": "/intelcpu/0/temperature/10",
+      "role": "cpu.temp.core"
+    },
+    {
+      "sensorId": "/intelcpu/0/temperature/11",
+      "role": "cpu.temp.core"
+    },
+    {
+      "sensorId": "/intelcpu/0/temperature/12",
+      "role": "cpu.temp.core"
+    },
+    {
+      "sensorId": "/intelcpu/0/temperature/13",
+      "role": "cpu.temp.core"
+    },
+    {
+      "sensorId": "/intelcpu/0/temperature/14",
+      "role": "cpu.temp.core"
+    },
+    {
+      "sensorId": "/intelcpu/0/temperature/15",
+      "role": "cpu.temp.core"
+    },
+    {
+      "sensorId": "/intelcpu/0/temperature/16",
+      "role": "cpu.temp.core"
+    },
+    {
+      "sensorId": "/intelcpu/0/temperature/17",
+      "role": "cpu.temp.core"
+    },
+    {
+      "sensorId": "/intelcpu/0/temperature/18",
+      "role": "cpu.temp.core"
+    },
+    {
+      "sensorId": "/intelcpu/0/temperature/19",
+      "role": "cpu.temp.core"
+    },
+    {
+      "sensorId": "/intelcpu/0/temperature/2",
+      "role": "cpu.temp.max"
+    },
+    {
+      "sensorId": "/intelcpu/0/temperature/3",
+      "role": "cpu.temp.avg"
+    },
+    {
+      "sensorId": "/intelcpu/0/temperature/4",
+      "role": "cpu.temp.core"
+    },
+    {
+      "sensorId": "/intelcpu/0/temperature/5",
+      "role": "cpu.temp.core"
+    },
+    {
+      "sensorId": "/intelcpu/0/temperature/6",
+      "role": "cpu.temp.core"
+    },
+    {
+      "sensorId": "/intelcpu/0/temperature/7",
+      "role": "cpu.temp.core"
+    },
+    {
+      "sensorId": "/intelcpu/0/temperature/8",
+      "role": "cpu.temp.core"
+    },
+    {
+      "sensorId": "/intelcpu/0/temperature/9",
+      "role": "cpu.temp.core"
+    },
+    {
+      "sensorId": "/intelcpu/0/voltage/38",
+      "role": "cpu.voltage.core"
+    },
+    {
+      "sensorId": "/lpc/nct6798/0/fan/52",
+      "role": "fan.cpu"
+    },
+    {
+      "sensorId": "/lpc/nct6798/0/fan/53",
+      "role": "fan.pump"
+    },
+    {
+      "sensorId": "/lpc/nct6798/0/fan/54",
+      "role": "fan.system"
+    },
+    {
+      "sensorId": "/lpc/nct6798/0/fan/55",
+      "role": "fan.system"
+    },
+    {
+      "sensorId": "/lpc/nct6798/0/temperature/56",
+      "role": "board.temp.cpu"
+    },
+    {
+      "sensorId": "/lpc/nct6798/0/temperature/57",
+      "role": "board.temp.chipset"
+    },
+    {
+      "sensorId": "/lpc/nct6798/0/temperature/58",
+      "role": "board.temp.vrm"
+    },
+    {
+      "sensorId": "/memory/dimm/1/temperature/63",
+      "role": "dimm.temp"
+    },
+    {
+      "sensorId": "/memory/dimm/2/temperature/66",
+      "role": "dimm.temp"
+    },
+    {
+      "sensorId": "/nvme/0/temperature/69",
+      "role": "storage.temp"
+    },
+    {
+      "sensorId": "/ram/data/60",
+      "role": "ram.used"
+    },
+    {
+      "sensorId": "/ram/data/61",
+      "role": "ram.available"
+    },
+    {
+      "sensorId": "/ram/load/59",
+      "role": "ram.load"
+    },
+    {
+      "sensorId": "/vram/load/62",
+      "role": "pagefile.load"
+    }
+  ],
+  "limits": [
+    {
+      "sensorId": "/intelcpu/0/temperature/20",
+      "kind": "tjmaxDistance"
+    },
+    {
+      "sensorId": "/intelcpu/0/temperature/21",
+      "kind": "tjmaxDistance"
+    },
+    {
+      "sensorId": "/intelcpu/0/temperature/22",
+      "kind": "tjmaxDistance"
+    },
+    {
+      "sensorId": "/intelcpu/0/temperature/23",
+      "kind": "tjmaxDistance"
+    },
+    {
+      "sensorId": "/intelcpu/0/temperature/24",
+      "kind": "tjmaxDistance"
+    },
+    {
+      "sensorId": "/intelcpu/0/temperature/25",
+      "kind": "tjmaxDistance"
+    },
+    {
+      "sensorId": "/intelcpu/0/temperature/26",
+      "kind": "tjmaxDistance"
+    },
+    {
+      "sensorId": "/intelcpu/0/temperature/27",
+      "kind": "tjmaxDistance"
+    },
+    {
+      "sensorId": "/intelcpu/0/temperature/28",
+      "kind": "tjmaxDistance"
+    },
+    {
+      "sensorId": "/intelcpu/0/temperature/29",
+      "kind": "tjmaxDistance"
+    },
+    {
+      "sensorId": "/intelcpu/0/temperature/30",
+      "kind": "tjmaxDistance"
+    },
+    {
+      "sensorId": "/intelcpu/0/temperature/31",
+      "kind": "tjmaxDistance"
+    },
+    {
+      "sensorId": "/intelcpu/0/temperature/32",
+      "kind": "tjmaxDistance"
+    },
+    {
+      "sensorId": "/intelcpu/0/temperature/33",
+      "kind": "tjmaxDistance"
+    },
+    {
+      "sensorId": "/intelcpu/0/temperature/34",
+      "kind": "tjmaxDistance"
+    },
+    {
+      "sensorId": "/intelcpu/0/temperature/35",
+      "kind": "tjmaxDistance"
+    },
+    {
+      "sensorId": "/memory/dimm/1/temperature/64",
+      "kind": "high"
+    },
+    {
+      "sensorId": "/memory/dimm/1/temperature/65",
+      "kind": "critical"
+    },
+    {
+      "sensorId": "/memory/dimm/2/temperature/67",
+      "kind": "high"
+    },
+    {
+      "sensorId": "/memory/dimm/2/temperature/68",
+      "kind": "critical"
+    },
+    {
+      "sensorId": "/nvme/0/temperature/70",
+      "kind": "warning"
+    },
+    {
+      "sensorId": "/nvme/0/temperature/71",
+      "kind": "critical"
+    }
+  ],
+  "primaryCpuId": "/intelcpu/0",
+  "primaryGpuId": "/gpu-amd/0",
+  "missingMandatory": []
+}
