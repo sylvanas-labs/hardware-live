@@ -16,3 +16,6 @@ TestResults/
 # pinned, hash-verified PresentMon release asset. Never committed.
 third_party/
 __pycache__/
+
+# Package output (tools/package.ps1) -- rebuilt from source, never committed.
+out/

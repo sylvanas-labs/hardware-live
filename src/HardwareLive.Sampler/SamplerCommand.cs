@@ -58,10 +58,12 @@ public sealed record SamplerCommand(
     }
 
     /// <summary>
-    /// Accepts only local or domain user/group SIDs (S-1-5-21-...). Rejects well-known
-    /// service accounts (LocalSystem S-1-5-18, LocalService S-1-5-19, NetworkService
-    /// S-1-5-20) and any other well-known/malformed SID, so the elevated sampler can
-    /// never be pointed at itself or another service identity.
+    /// Accepts only real user account SIDs: local/domain accounts (S-1-5-21-...) and
+    /// Microsoft Entra ID (Azure AD) accounts (S-1-12-1-...), which are common on work PCs.
+    /// Rejects well-known service accounts (LocalSystem S-1-5-18, LocalService S-1-5-19,
+    /// NetworkService S-1-5-20) and any other well-known/malformed SID, so the elevated
+    /// sampler can never be pointed at itself or another service identity.
+    /// Must stay identical to Test-TargetUserSid in tools/HardwareLive.InstallLib.psm1.
     /// </summary>
     private static SecurityIdentifier? TryParseTargetUserSid(string candidate)
     {
@@ -80,6 +82,10 @@ public sealed record SamplerCommand(
             return null;
         }
 
-        return sid.Value.StartsWith("S-1-5-21-", StringComparison.OrdinalIgnoreCase) ? sid : null;
+        var value = sid.Value;
+        var isUserAccount =
+            value.StartsWith("S-1-5-21-", StringComparison.OrdinalIgnoreCase) ||
+            value.StartsWith("S-1-12-1-", StringComparison.OrdinalIgnoreCase);
+        return isUserAccount ? sid : null;
     }
 }

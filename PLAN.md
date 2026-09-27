@@ -3,15 +3,11 @@
 Full spec: [docs/SPEC.md](docs/SPEC.md) (APPROVED r4).
 
 ## Now
-- [ ] Next: Soon step 1 (`install.ps1`/`uninstall.ps1`)
+- [ ] Supervised real install/uninstall on Alessa's PC + live check; final package
+- [ ] Human-only: golden fixtures from 3 other machines; clean second-PC reboot test; LAN-unreachability check from another machine; FPS accuracy in a real game
 
 ## Soon (in order)
-1. `install.ps1`/`uninstall.ps1`, with these requirements:
-   - Install to `Program Files\HardwareLive\{app,sampler}\`, kept as separate folders.
-   - `HL-Sampler` task runs as **SYSTEM** with `--user-sid`; `HL-App` task runs unelevated.
-   - Launcher opens `http://127.0.0.1:<port>`, not `localhost` (the server binds IPv4 loopback only).
-   - Create the `%ProgramData%\HardwareLive\logs` ACL.
-   - Restart-on-failure, PawnIO guidance, clean-PC reboot test.
+1. Promote alpha -> develop (PR) once Alessa has used the installed build
 
 ## Later
 - GPU off-bus edge panel as an optional plugin (Alessa's rig)
@@ -20,6 +16,20 @@ Full spec: [docs/SPEC.md](docs/SPEC.md) (APPROVED r4).
 - Light theme polish, CSV export of a session, alert sounds
 
 ## Done
+- 2026-09-27 Packaging + install/uninstall/lifecycle complete (step 8): `tools/package.ps1`
+  (self-contained win-x64 app+sampler, licenses incl. full MPL-2.0 text, SHA256SUMS.txt,
+  zip); `install.ps1` (self-elevate capturing the pre-elevation SID, PASS/WARN/FAIL preflight,
+  robocopy `/COPY:DAT` + verified-and-rolled-back protected ACL on Program Files and
+  ProgramData, `\HardwareLive\Sampler`(SYSTEM)/`App`(Limited) logon tasks, monotonic FPS/
+  Performance Log Users consent + `install-state.json`, health poll, `-WhatIf`); matching
+  `uninstall.ps1` (idempotent, permission rollback, `-WhatIf`); `tools/HardwareLive.InstallLib.psm1`
+  + `tools/test-installlib.ps1` (32 admin-free unit tests: SID validation matching the
+  sampler's own rules, ACL allow-list predicate incl. owner check, monotonic flag merge, JSON
+  merge preserving unknown keys); `tools/check-scripts.ps1` (PS 5.1 parse-sweep + ASCII scan,
+  wired into `dotnet test` via `PowerShellFactAttribute`); app-side reopen path
+  (`--open`/`--no-window`/`openWindowOnStart`, named-mutex single instance, Edge `--app`
+  window with default-browser fallback, `hardware-live.exe` AssemblyName) with 19 new xunit
+  tests. 22 new C# tests total; all 491 xunit + 28 node tests green.
 - 2026-09-27 FPS via PresentMon v2.6.0 complete (step 7): `tools/fetch-presentmon.ps1`
   (pinned hash/size verify, PS5.1-safe, ASCII-only) + conditional App-csproj copy;
   `Core/Fps/` header-driven CSV parser, bounded per-PID rolling aggregator (exact

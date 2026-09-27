@@ -10,6 +10,10 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <AssemblyName>hardware-live</AssemblyName>
+    <!-- Self-contained win-x64 publish (recipients have no .NET runtime) is done by
+         tools/package.ps1 via `dotnet publish -p:SelfContained=true -r win-x64`, not baked in
+         here, so a plain `dotnet build`/`dotnet test` stays framework-dependent and fast. -->
   </PropertyGroup>
 
   <!-- PresentMon (docs/SPEC.md step7-fps): tools/fetch-presentmon.ps1 downloads the pinned,

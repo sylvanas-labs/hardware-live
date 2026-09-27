@@ -24,7 +24,19 @@ public sealed class SamplerCommandTests
         Assert.Equal(ValidUserSid, command.UserSid!.Value);
     }
 
+    [Fact]
+    public void EntraIdUserSidIsAccepted()
+    {
+        // Microsoft Entra ID (Azure AD) accounts, common on work PCs, have S-1-12-1-... SIDs.
+        const string entraSid = "S-1-12-1-1234567890-1234567890-1234567890-1234567890";
+        var command = SamplerCommand.Parse(["--user-sid", entraSid]);
+
+        Assert.Equal(SamplerCommandKind.Serve, command.Kind);
+        Assert.Equal(entraSid, command.UserSid!.Value);
+    }
+
     [Theory]
+    [InlineData("S-1-12-2-1-2-3-4")] // other S-1-12 forms are not user accounts
     [InlineData("S-1-5-18")] // LocalSystem
     [InlineData("S-1-5-19")] // LocalService
     [InlineData("S-1-5-20")] // NetworkService
