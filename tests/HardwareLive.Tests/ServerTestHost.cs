@@ -20,9 +20,11 @@ internal sealed class ServerTestHost : IAsyncDisposable
 
     public int Port => Server.BoundAddress.Port;
 
-    public static async Task<ServerTestHost> StartAsync()
+    public static async Task<ServerTestHost> StartAsync(ITelemetrySource? telemetry = null)
     {
-        var server = HardwareLiveServer.Create(0);
+        var server = telemetry is null
+            ? HardwareLiveServer.Create(0)
+            : HardwareLiveServer.Create(0, telemetry);
         await server.StartAsync();
         return new ServerTestHost(server);
     }

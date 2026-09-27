@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
+    <TargetFramework>net10.0-windows</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
@@ -24,6 +24,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\HardwareLive.Core\HardwareLive.Core.csproj" />
+    <ProjectReference Include="..\..\src\HardwareLive.Protocol\HardwareLive.Protocol.csproj" />
+    <ProjectReference Include="..\..\src\HardwareLive.Sampler\HardwareLive.Sampler.csproj" />
   </ItemGroup>
 
   <ItemGroup>

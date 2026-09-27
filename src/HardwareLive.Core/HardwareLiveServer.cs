@@ -33,12 +33,20 @@ public sealed class HardwareLiveServer : IAsyncDisposable
 
     public IReadOnlyList<Uri> BoundAddresses { get; private set; } = [];
 
-    public static HardwareLiveServer Create(int port = DefaultPort)
+    public static HardwareLiveServer Create(int port = DefaultPort) =>
+        Create(port, new TelemetryStore());
+
+    public static HardwareLiveServer Create(ITelemetrySource telemetry, int port = DefaultPort) =>
+        Create(port, telemetry);
+
+    public static HardwareLiveServer Create(int port, ITelemetrySource telemetry)
     {
         if (port is < 0 or > ushort.MaxValue)
         {
             throw new ArgumentOutOfRangeException(nameof(port), "Port must be between 0 and 65535.");
         }
+
+        ArgumentNullException.ThrowIfNull(telemetry);
 
         var tokenBytes = RandomNumberGenerator.GetBytes(32);
         var token = WebEncoders.Base64UrlEncode(tokenBytes);
@@ -65,7 +73,7 @@ public sealed class HardwareLiveServer : IAsyncDisposable
 
         // This must remain the first middleware in the pipeline.
         application.Use(HostHeaderGuard);
-        var router = new RequestRouter(tokenBytes, token, new InMemoryLayoutStore());
+        var router = new RequestRouter(tokenBytes, token, new InMemoryLayoutStore(), telemetry);
         application.Run(router.HandleAsync);
 
         return new HardwareLiveServer(application, token);

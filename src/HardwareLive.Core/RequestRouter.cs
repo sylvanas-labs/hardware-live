@@ -13,12 +13,18 @@ internal sealed class RequestRouter
     private readonly byte[] _token;
     private readonly string _tokenText;
     private readonly InMemoryLayoutStore _layouts;
+    private readonly ITelemetrySource _telemetry;
 
-    public RequestRouter(byte[] token, string tokenText, InMemoryLayoutStore layouts)
+    public RequestRouter(
+        byte[] token,
+        string tokenText,
+        InMemoryLayoutStore layouts,
+        ITelemetrySource telemetry)
     {
         _token = token;
         _tokenText = tokenText;
         _layouts = layouts;
+        _telemetry = telemetry;
     }
 
     public async Task HandleAsync(HttpContext context)
@@ -38,7 +44,7 @@ internal sealed class RequestRouter
 
         if (path is "/api/snapshot" or "/api/meta" or "/api/health")
         {
-            await HandleReadStub(context, path);
+            await HandleTelemetryRead(context, path);
             return;
         }
 
@@ -80,7 +86,7 @@ internal sealed class RequestRouter
             $"<!doctype html><html><head><meta charset=\"utf-8\"><meta name=\"hl-token\" content=\"{encodedToken}\"><title>Hardware Live</title></head><body><h1>Hardware Live</h1></body></html>");
     }
 
-    private static async Task HandleReadStub(HttpContext context, string path)
+    private async Task HandleTelemetryRead(HttpContext context, string path)
     {
         if (!HttpMethods.IsGet(context.Request.Method))
         {
@@ -88,13 +94,71 @@ internal sealed class RequestRouter
             return;
         }
 
-        if (path == "/api/health")
+        if (path == "/api/snapshot")
         {
-            await WriteJson(context, new { status = "UNKNOWN", reason = "sampler not implemented" });
+            await HandleSnapshot(context);
             return;
         }
 
-        await WriteJson(context, new { status = "stub" });
+        if (path == "/api/meta")
+        {
+            var frame = _telemetry.LatestFrame;
+            await WriteJson(context, new
+            {
+                hardware = frame?.Hardware ?? [],
+                sensors = frame?.Sensors.Select(sensor => new
+                {
+                    sensor.Id,
+                    sensor.HardwareId,
+                    sensor.Name,
+                    sensor.Type,
+                }) ?? [],
+                pawnIoInstalled = frame?.PawnIoInstalled ?? false,
+                elevated = frame?.Elevated ?? false,
+                lhmVersion = frame?.LhmVersion ?? string.Empty,
+            });
+            return;
+        }
+
+        var reason = _telemetry.HasSamplerIdentityMismatch
+            ? "sampler identity mismatch"
+            : _telemetry.LatestFrame is null
+                ? "sampler not running"
+                : _telemetry.IsStale
+                    ? "sampler stale"
+                    : "classifier not implemented";
+        await WriteJson(context, new { status = "UNKNOWN", reason });
+    }
+
+    private async Task HandleSnapshot(HttpContext context)
+    {
+        IReadOnlyCollection<string>? requestedIds = null;
+        if (context.Request.Query.ContainsKey("ids"))
+        {
+            var ids = context.Request.Query["ids"]
+                .ToString()
+                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Distinct(StringComparer.Ordinal)
+                .ToArray();
+            if (ids.Length > 200)
+            {
+                await EmptyStatus(context, StatusCodes.Status400BadRequest);
+                return;
+            }
+
+            requestedIds = ids;
+        }
+
+        var snapshot = _telemetry.GetSnapshot(requestedIds);
+        var frame = snapshot.LatestFrame;
+        await WriteJson(context, new
+        {
+            timestampUnixMs = frame?.TimestampUnixMs,
+            sequence = frame?.Sequence,
+            stale = snapshot.Stale,
+            sensors = frame?.Sensors.Select(sensor => new { sensor.Id, sensor.Value }) ?? [],
+            history = snapshot.History,
+        });
     }
 
     private async Task HandleLayouts(HttpContext context)

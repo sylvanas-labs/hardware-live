@@ -1,6 +1,6 @@
 # Hardware Live: portable v1 spec
 
-Status: **APPROVED r4 (2026-09-27).** Open questions resolved; r4 adds FPS capture.
+Status: **APPROVED r4 (2026-09-27)**, with r5 security hardening from the step-2 review (sampler runs as SYSTEM).
 r2 folds in the Codex adversarial review (2026-09-27) and Alessa's layout/preset request.
 r3 fixes r2's review: privilege split, authenticated layout writes, exact-sensor preset refs.
 
@@ -44,11 +44,33 @@ generalizes it.
 `desktop-app-template`: that's a WinForms GUI with update machinery, and this is a
 background sampler plus a browser UI. We reuse its conventions only (xunit, and later its
 release workflow). (r3 privilege split):
-- `hl-sampler.exe` (elevated): LibreHardwareMonitorLib only. It **pushes** JSON snapshot
-  frames one way over a named pipe. The pipe ACL grants the current user only, and the
-  sampler accepts no inbound commands (it ignores anything read from the pipe).
+- `hl-sampler.exe` (**runs as LocalSystem**, r5): LibreHardwareMonitorLib only.
+  - Running as SYSTEM, not as the user elevated, means it never inherits the user-editable
+    `HKCU\Environment`. That environment could inject `DOTNET_STARTUP_HOOKS` or a
+    `CORECLR_PROFILER` into an admin process.
+  - The target user's SID comes from `--user-sid`, set in the admin-only task definition.
+  - `StartupHookSupport=false`, published self-contained.
+  - Installed under `Program Files` (admin-only writable). An elevated task running a
+    user-writable exe would be a privilege escalation.
+  - **Layout:** `<root>\app\` (framework-dependent app) and `<root>\sampler\` (self-contained
+    sampler) are separate folders. The sampler's private runtime (`coreclr.dll`,
+    `hostpolicy.dll`, ...) in the app's folder makes the app hang at startup without listening
+    (found in step-2 e2e). The app expects the sampler at `..\sampler\hl-sampler.exe`.
+  - Logs go to `%ProgramData%\HardwareLive\logs` (admin-only ACL). The sampler refuses to
+    follow reparse points, caps the log at 1 MB with one rotation, and rate-limits
+    repeated messages.
+  - The pipe's **owner is set to BUILTIN\Administrators**.
+  - It **pushes** JSON snapshot frames one way over a named pipe. The pipe ACL grants the
+    target user read-only access (plus ReadPermissions, so the client can check the owner),
+    and the sampler accepts no inbound commands.
 - `hardware-live.exe` (unelevated): pipe client, HTTP server, layouts, analysis. It
   launches Edge.
+  - It accepts a sampler only if the **pipe owner is Administrators or SYSTEM**. The kernel
+    enforces this and a non-admin can't set it, so another local user running their own
+    copy of `hl-sampler.exe` is rejected. The server image path must also match.
+  - Frames are validated after parsing (non-null lists and IDs, at most 5000 sensors and 500
+    hardware entries, strings at most 256 chars); a bad frame is dropped and logged.
+  - Pipe reads and writes have timeouts, so a stalled peer can't wedge either side.
 
 This is (C#, matching the org's desktop
 convention; `desktop-app-template` is a candidate base, confirm before starting). This
@@ -93,7 +115,8 @@ source. PawnIO (GPLv2+) is not bundled.
 7. **Notes hook (optional).** Shows `notes.json` (`{at, ts, lines[]}`), dimmed after 30 min.
 8. **Install and lifecycle** (`install.ps1`, ASCII, PowerShell 5.1-safe). Two per-user logon
    tasks:
-   - `HL-Sampler`: RunLevel Highest.
+   - `HL-Sampler`: runs as **SYSTEM** at logon, with `hl-sampler.exe --user-sid <SID>` from
+     `Program Files\HardwareLive`.
    - `HL-App`: RunLevel Limited. It waits for the pipe and opens an Edge `--app` window
      from the unelevated process.
    - Both restart on failure: 3 tries, 1 min apart.
@@ -278,6 +301,10 @@ source. PawnIO (GPLv2+) is not bundled.
   (cross-user/short-lived processes show `<unknown>`) per README.md. Read 2026-09-27.
 - Codex adversarial review r1: verdict needs-attention (4 findings, all accepted: loopback,
   RawValue/units, classifier proof, lifecycle).
+- Step-2 security review (Claude, 2026-09-27, standing in for rate-limited Codex): user-writable
+  log dir written by the elevated process, user env injection into the elevated process, pipe
+  spoofing by another local user, and client death on malformed frames. Fixed in r5
+  (SYSTEM sampler, ProgramData logs, pipe-owner check, frame validation).
 - Codex scoped review of r4 (vs 49406b8): 3 medium findings (permission rollback, FPS target
   eligibility, FPS oracle), all accepted and fixed in r4.1. Round 2: 2 medium findings (non-game
   fullscreen apps, provenance across reinstall), fixed in r4.2 with one documented residual. Round 3 (review-loop cap): 1 medium finding
