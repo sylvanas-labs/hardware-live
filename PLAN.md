@@ -6,7 +6,7 @@ Full spec: [docs/SPEC.md](docs/SPEC.md) (APPROVED r4).
 - [ ] Step 1 of Soon (scaffold + loopback server + security tests)
 
 ## Soon (after approval, in order)
-1. .NET 9 scaffold (check desktop-app-template fit) + loopback `HttpListener` with Host/GET guards + security tests
+1. .NET 10 scaffold (check desktop-app-template fit) + loopback `HttpListener` with Host/GET guards + security tests
 2. Sampler on LibreHardwareMonitorLib 0.9.6 (read-only) + `--dump` fixture tool
 3. Classifier (HardwareType > SensorType > Identifier > name) + golden-role fixtures (4 machines) + UNKNOWN health
 4. Threshold profiles + analysis engine ported from prototype + rule tests (incl. null/NaN)

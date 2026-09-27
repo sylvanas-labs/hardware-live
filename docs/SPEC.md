@@ -39,10 +39,10 @@ generalizes it.
 | **B. Our own sampler on `LibreHardwareMonitorLib`** (NuGet 0.9.6, netstandard2.0) | **Chosen.** One process: we control the binding, read-only use, and lifecycle. |
 | C. HWiNFO shared memory | Rejected: the free tier auto-disables after 12h. |
 
-**Runtime: .NET 9, self-contained, two small executables.** Both are built as windowed apps
+**Runtime: .NET 10 (LTS, supported to 2028-11-14; .NET 9 EOL is 2026-11-10), self-contained, two small executables.** Both are built as windowed apps
 (`OutputType=WinExe`) so logon tasks never flash a console window. Not based on
 `desktop-app-template`: that's a WinForms GUI with update machinery, and this is a
-background sampler plus a browser UI. We reuse its conventions only (net9, xunit, and later its
+background sampler plus a browser UI. We reuse its conventions only (xunit, and later its
 release workflow). (r3 privilege split):
 - `hl-sampler.exe` (elevated): LibreHardwareMonitorLib only. It **pushes** JSON snapshot
   frames one way over a named pipe. The pipe ACL grants the current user only, and the
