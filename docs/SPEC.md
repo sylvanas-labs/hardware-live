@@ -113,8 +113,10 @@ source. PawnIO (GPLv2+) is not bundled.
    - **Target eligibility (r4.1).** The target is the foreground-window process
      (`GetForegroundWindow` → PID) **only if** all of the following hold:
      - **Positive game signal:** its foreground window covers its whole monitor (exclusive or
-       borderless fullscreen), **or** PresentMon reports a hardware/independent-flip present
-       mode for it. Ordinary windowed apps never auto-qualify; windowed games need a pin.
+       borderless fullscreen). This is **required** for automatic targeting. Present mode
+       (e.g. independent flip) is corroboration only and never qualifies on its own, since
+       windowed flip-model/MPO apps report it too. Ordinary windowed apps never
+       auto-qualify; windowed games need a pin.
      - It has presented at ≥ 20 frames/s for 3 consecutive 1 s buckets.
      - it isn't on the built-in denylist: `explorer`, `dwm`, browsers
        (`msedge`/`chrome`/`firefox`/`brave`/`opera`), launchers and overlays
@@ -233,6 +235,7 @@ source. PawnIO (GPLv2+) is not bundled.
     - VLC or Windows Media Player playing video **windowed** gives "–"; fullscreen gives "–"
       (denylist)
     - a windowed non-game app animating at 60 fps gives "–" (no fullscreen signal)
+    - regression: a non-denylisted **windowed** app on independent flip/MPO at 20+ fps gives "–"
     - a game in the foreground (fullscreen or borderless) gives a value
     - a pinned process gives a value even when it isn't in the foreground
   - Permission round-trip:
@@ -272,6 +275,9 @@ source. PawnIO (GPLv2+) is not bundled.
   RawValue/units, classifier proof, lifecycle).
 - Codex scoped review of r4 (vs 49406b8): 3 medium findings (permission rollback, FPS target
   eligibility, FPS oracle), all accepted and fixed in r4.1. Round 2: 2 medium findings (non-game
-  fullscreen apps, provenance across reinstall), fixed in r4.2 with one documented residual.
+  fullscreen apps, provenance across reinstall), fixed in r4.2 with one documented residual. Round 3 (review-loop cap): 1 medium finding
+  (independent flip isn't a game signal); fixed in r4.3 by making whole-monitor coverage
+  mandatory. **The r4.3 fix is not independently re-verified, because the loop cap was
+  reached.** Its regression test is in the acceptance criteria.
 - Codex scoped re-verify of r2 (vs 94c26b5): confirmed r1's 4 resolved; 3 new medium findings
   (GET-only vs layout writes, elevated monolith, role-only presets), all accepted and fixed in r3.
