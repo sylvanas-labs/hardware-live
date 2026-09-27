@@ -14,6 +14,8 @@ import {
   hardwareKindFromType,
   sensorTypeCategory,
   thresholdLevel,
+  resolveSensorLevel,
+  VALUE_UNIT_SEPARATOR,
   resolveWidgetRef,
   matchesSensorSearch,
   sanitizeDisplayText,
@@ -80,6 +82,26 @@ test('thresholdLevel classifies ok/watch/critical and handles absence', () => {
   assert.equal(thresholdLevel(null, threshold), null);
   assert.equal(thresholdLevel(NaN, threshold), null);
   assert.equal(thresholdLevel(50, null), null);
+});
+
+test('resolveSensorLevel prefers the server-computed level over the local threshold calc', () => {
+  const threshold = { watch: 88, critical: 95 };
+  // Server says watch (e.g. the CPU Tjmax-by-design carve-out) even though a naive
+  // value/threshold comparison of 95.6 >= 95 would say critical.
+  assert.equal(resolveSensorLevel('/cpu/temp', 95.6, threshold, { '/cpu/temp': 'watch' }), 'watch');
+  // Server explicitly says critical; still honored even though it agrees with local calc.
+  assert.equal(resolveSensorLevel('/cpu/temp', 97.8, threshold, { '/cpu/temp': 'critical' }), 'critical');
+  // Sensor missing from the map (e.g. before the first health response) falls back to local.
+  assert.equal(resolveSensorLevel('/cpu/temp', 95.6, threshold, { '/other/sensor': 'watch' }), 'critical');
+  assert.equal(resolveSensorLevel('/cpu/temp', 95.6, threshold, undefined), 'critical');
+  assert.equal(resolveSensorLevel('/cpu/temp', 95.6, threshold, {}), 'critical');
+});
+
+test('formatValue and the tile value/unit separator use the same character', () => {
+  assert.equal(VALUE_UNIT_SEPARATOR, ' ');
+  const [value, unit] = formatValue(146.8, '°F', 1).split(VALUE_UNIT_SEPARATOR);
+  assert.equal(value, '146.8');
+  assert.equal(unit, '°F');
 });
 
 test('resolveWidgetRef expands a bare role to every matching sensor in identifier order', () => {

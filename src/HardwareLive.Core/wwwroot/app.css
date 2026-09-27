@@ -256,7 +256,10 @@ a, button, input, [tabindex] { color: inherit; }
   font-variant-numeric: tabular-nums;
   margin-top: 2px;
 }
-.tile-value .unit { font-size: 12px; color: var(--muted); font-weight: 500; margin-left: 3px; }
+/* No margin-left here: the separator between value and unit is now a literal space character
+   in the text flow (VALUE_UNIT_SEPARATOR in logic.js), matching formatValue()'s own spacing
+   everywhere else (peak line, gauge value) instead of a second, CSS-only gap. */
+.tile-value .unit { font-size: 12px; color: var(--muted); font-weight: 500; }
 /* Always reserved, even when empty, so tiles with no threshold (most non-temperature
    sensors) are the same height as tiles that show a WATCH/CRITICAL word (docs/SPEC.md
    step5-polish "Tiles consistency"). */

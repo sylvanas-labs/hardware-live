@@ -38,7 +38,8 @@ internal static partial class HealthResponsePresenter
             result.Phase,
             concerns,
             trends,
-            uptimeSeconds);
+            uptimeSeconds,
+            result.SensorLevels);
     }
 
     public static IReadOnlyList<Concern> RecoveryConcerns(bool include) =>
@@ -95,6 +96,10 @@ internal sealed record PresentedTrend(
     string Label,
     string Unit);
 
+/// <summary><see cref="SensorLevels"/> serializes as <c>/api/health</c>'s <c>sensorLevels</c>
+/// (docs/SPEC.md analysis rule 2 / step5-polish "Tiles consistency"): the UI prefers this
+/// server-computed per-sensor level over its own local threshold comparison, falling back only
+/// for a sensor missing from the map.</summary>
 internal sealed record PresentedHealth(
     HealthStatus Status,
     string? Reason,
@@ -102,4 +107,5 @@ internal sealed record PresentedHealth(
     string Phase,
     IReadOnlyList<Concern> Concerns,
     IReadOnlyList<PresentedTrend> Trends,
-    double UptimeSeconds);
+    double UptimeSeconds,
+    IReadOnlyDictionary<string, string> SensorLevels);

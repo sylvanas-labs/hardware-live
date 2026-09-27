@@ -21,7 +21,11 @@ public static class HealthAnalyzer
 {
     private const int SamplesPerMinute = 60;
     private const int TrendWindow = 180;
-    private const int MinTrendSamples = 20;
+    // 60 non-null samples = 1 minute at the sampler's 1 Hz cadence (see class remarks): a
+    // ~20-sample window let a bursty CPU produce an alarming slope ("47.7 F/min") seconds
+    // after startup, before there was enough signal to trust a least-squares fit.
+    private const int MinTrendSamples = 60;
+    private const string LevelOk = "ok";
     private const double TrendSlopeThreshold = 0.4;
     private const double TrendEtaMinutesGate = 10;
     private const double TrendValueGateOffset = 5;
@@ -48,13 +52,14 @@ public static class HealthAnalyzer
     {
         var concerns = new List<Concern>();
         var trends = new List<Trend>();
+        var sensorLevels = new Dictionary<string, string>(StringComparer.Ordinal);
 
         if (configInvalid)
         {
             concerns.Add(new Concern(ConcernLevel.Info, "config", "config.json", "config.json invalid, using defaults"));
         }
 
-        EvaluateTemperatures(snapshot, classification, thresholds, concerns);
+        EvaluateTemperatures(snapshot, classification, thresholds, concerns, sensorLevels);
         EvaluateTrends(snapshot, classification, thresholds, concerns, trends);
         EvaluateThrottle(snapshot, classification, concerns);
         EvaluatePowerLimit(snapshot, classification, concerns);
@@ -66,7 +71,7 @@ public static class HealthAnalyzer
             : HealthStatus.HEALTHY;
         var headline = BuildHeadline(status, phase, snapshot, classification);
 
-        return new AnalysisResult(status, null, headline, phase, concerns, trends);
+        return new AnalysisResult(status, null, headline, phase, concerns, trends, sensorLevels);
     }
 
     // ---- Rules 1 & 2: temperature levels, with the CPU Tjmax-by-design carve-out --------
@@ -75,7 +80,8 @@ public static class HealthAnalyzer
         TelemetrySnapshot snapshot,
         ClassificationResult classification,
         ThresholdResolution thresholds,
-        List<Concern> concerns)
+        List<Concern> concerns,
+        Dictionary<string, string> sensorLevels)
     {
         foreach (var role in classification.Roles)
         {
@@ -90,14 +96,10 @@ public static class HealthAnalyzer
                 continue;
             }
 
-            if (role.Role == Roles.CpuTempControl)
-            {
-                EvaluateCpuControlTemp(role, v, threshold, snapshot, classification, concerns);
-            }
-            else
-            {
-                EvaluateGenericTemp(role, v, threshold, concerns);
-            }
+            var level = role.Role == Roles.CpuTempControl
+                ? EvaluateCpuControlTemp(role, v, threshold, snapshot, classification, concerns)
+                : EvaluateGenericTemp(role, v, threshold, concerns);
+            sensorLevels[role.SensorId] = level;
         }
     }
 
@@ -159,7 +161,7 @@ public static class HealthAnalyzer
         return result;
     }
 
-    private static void EvaluateGenericTemp(SensorRole role, float value, ThresholdEntry threshold, List<Concern> concerns)
+    private static string EvaluateGenericTemp(SensorRole role, float value, ThresholdEntry threshold, List<Concern> concerns)
     {
         var label = RoleLabels.For(role.Role);
         if (value >= threshold.Critical)
@@ -167,16 +169,21 @@ public static class HealthAnalyzer
             concerns.Add(new Concern(
                 ConcernLevel.Critical, role.Role, role.SensorId,
                 $"{label} at {Format(value)} {RoleLabels.DegreeCelsius}, over critical ({Format(threshold.Critical)} {RoleLabels.DegreeCelsius})"));
+            return ConcernLevel.Critical;
         }
-        else if (value >= threshold.Watch)
+
+        if (value >= threshold.Watch)
         {
             concerns.Add(new Concern(
                 ConcernLevel.Watch, role.Role, role.SensorId,
                 $"{label} at {Format(value)} {RoleLabels.DegreeCelsius}, at watch ({Format(threshold.Watch)} {RoleLabels.DegreeCelsius})"));
+            return ConcernLevel.Watch;
         }
+
+        return LevelOk;
     }
 
-    private static void EvaluateCpuControlTemp(
+    private static string EvaluateCpuControlTemp(
         SensorRole role,
         float value,
         ThresholdEntry threshold,
@@ -187,7 +194,7 @@ public static class HealthAnalyzer
         var label = RoleLabels.For(role.Role);
         if (value < threshold.Watch)
         {
-            return;
+            return LevelOk;
         }
 
         if (value < threshold.Critical)
@@ -195,7 +202,7 @@ public static class HealthAnalyzer
             concerns.Add(new Concern(
                 ConcernLevel.Watch, role.Role, role.SensorId,
                 $"{label} at {Format(value)} {RoleLabels.DegreeCelsius}, at watch ({Format(threshold.Watch)} {RoleLabels.DegreeCelsius})"));
-            return;
+            return ConcernLevel.Watch;
         }
 
         var overLimit = value > threshold.Critical + 2;
@@ -205,13 +212,13 @@ public static class HealthAnalyzer
             concerns.Add(new Concern(
                 ConcernLevel.Critical, role.Role, role.SensorId,
                 $"{label} at {Format(value)} {RoleLabels.DegreeCelsius}, over critical ({Format(threshold.Critical)} {RoleLabels.DegreeCelsius})"));
+            return ConcernLevel.Critical;
         }
-        else
-        {
-            concerns.Add(new Concern(
-                ConcernLevel.Watch, role.Role, role.SensorId,
-                "at thermal limit, boost reduced - normal for this CPU under full load"));
-        }
+
+        concerns.Add(new Concern(
+            ConcernLevel.Watch, role.Role, role.SensorId,
+            "at thermal limit, boost reduced - normal for this CPU under full load"));
+        return ConcernLevel.Watch;
     }
 
     private static bool IsClockCollapsed(TelemetrySnapshot snapshot, ClassificationResult classification)

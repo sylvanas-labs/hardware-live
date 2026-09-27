@@ -115,6 +115,22 @@ export function thresholdLevel(value, threshold) {
 }
 
 /**
+ * The level a tile/gauge should actually render for one sensor: prefers the server-computed
+ * `/api/health` `sensorLevels[sensorId]` (HealthAnalyzer.cs, which applies rules a bare
+ * value/threshold comparison can't reproduce -- e.g. the CPU Tjmax-by-design carve-out that
+ * keeps a 9800X3D at 95 C holding clocks at WATCH, not CRITICAL) and falls back to the local
+ * {@link thresholdLevel} calc only when the sensor is missing from that map (e.g. before the
+ * first health response lands).
+ */
+export function resolveSensorLevel(sensorId, value, threshold, sensorLevels) {
+  if (sensorLevels && Object.prototype.hasOwnProperty.call(sensorLevels, sensorId)) {
+    return sensorLevels[sensorId];
+  }
+
+  return thresholdLevel(value, threshold);
+}
+
+/**
  * Resolves one widget ref ({role?, id?, hw?}) against the current /api/meta payload
  * ({ sensors: [{id,...}], roles: [{sensorId, role, ...}] }) to the sensor ids it currently
  * covers (docs/SPEC.md "Widget references (r3)"):
@@ -200,13 +216,21 @@ export function sanitizeDisplayText(value) {
   return out;
 }
 
+/**
+ * The one separator between a formatted value and its unit, shared by every value/unit
+ * rendering (formatValue below, plus any caller that builds the pair as separate DOM nodes,
+ * e.g. a tile's muted `.unit` span) so a tile's "146.8 °F" and a peak line's "peak 148.3 °F"
+ * are never inconsistently spaced (docs/SPEC.md step5-polish "Tiles consistency").
+ */
+export const VALUE_UNIT_SEPARATOR = ' ';
+
 export function formatValue(value, unit, decimals = 0) {
   if (value == null || !Number.isFinite(value)) {
     return '–'; // en dash: "no reading", never a bare 0.
   }
 
   const text = value.toFixed(decimals);
-  return unit ? `${text} ${unit}` : text;
+  return unit ? `${text}${VALUE_UNIT_SEPARATOR}${unit}` : text;
 }
 
 /** Pure array move used by both pointer-drag drop and keyboard reorder. */

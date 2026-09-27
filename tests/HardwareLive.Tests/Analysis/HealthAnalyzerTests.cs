@@ -181,6 +181,57 @@ public sealed class HealthAnalyzerTests
         Assert.DoesNotContain("normal for this CPU", concern.Message, StringComparison.Ordinal);
     }
 
+    // ---- sensorLevels: tile/gauge severity must match the health panel -------------------
+
+    [Fact]
+    public void SensorLevelsCarriesTheCpuTjmaxCarveOutSoATileMatchesThePanel()
+    {
+        var (classification, thresholds) = CpuScenario();
+        var watchSnapshot = Snapshot(
+            (CpuTempId, Repeat(95.6f, 30)),
+            (CpuLoadId, Repeat(100f, 30)),
+            (CpuClockId, ClockRampThenDip(5200f, 4879f, 30)));
+        var watchResult = HealthAnalyzer.Analyze(watchSnapshot, classification, thresholds, false);
+        Assert.Equal(ConcernLevel.Watch, watchResult.SensorLevels[CpuTempId]);
+
+        var criticalSnapshot = Snapshot(
+            (CpuTempId, Repeat(97.8f, 30)),
+            (CpuLoadId, Repeat(100f, 30)),
+            (CpuClockId, ClockRampThenDip(5200f, 4879f, 30)));
+        var criticalResult = HealthAnalyzer.Analyze(criticalSnapshot, classification, thresholds, false);
+        Assert.Equal(ConcernLevel.Critical, criticalResult.SensorLevels[CpuTempId]);
+    }
+
+    [Fact]
+    public void SensorLevelsReportsOkForAHealthySensorWithAResolvedThreshold()
+    {
+        var role = Role("/board/vrm", Roles.BoardTempVrm, "/board");
+        var classification = Classify(role);
+        var thresholds = Thresholds((role.SensorId, 85, 100));
+
+        var result = HealthAnalyzer.Analyze(Snapshot((role.SensorId, [50f])), classification, thresholds, false);
+
+        Assert.Equal("ok", result.SensorLevels[role.SensorId]);
+    }
+
+    [Fact]
+    public void SensorLevelsOmitsASensorWithNoResolvedThresholdOrNoFiniteValue()
+    {
+        var withThreshold = Role("/board/vrm", Roles.BoardTempVrm, "/board");
+        var withoutThreshold = Role(GpuPowerPctId, Roles.GpuPowerPct, "/gpu/0");
+        var classification = Classify(withThreshold, withoutThreshold);
+        var thresholds = Thresholds((withThreshold.SensorId, 85, 100));
+
+        var result = HealthAnalyzer.Analyze(
+            Snapshot((withThreshold.SensorId, [null, float.NaN]), (withoutThreshold.SensorId, [99f])),
+            classification,
+            thresholds,
+            false);
+
+        Assert.DoesNotContain(withThreshold.SensorId, result.SensorLevels.Keys);
+        Assert.DoesNotContain(withoutThreshold.SensorId, result.SensorLevels.Keys);
+    }
+
     // ---- Rule 3: trends ------------------------------------------------------------------
 
     [Fact]
@@ -190,7 +241,7 @@ public sealed class HealthAnalyzerTests
         var classification = Classify(role);
         var thresholds = Thresholds((CpuTempId, 88, 95));
         var slopePerSample = 2.0 / 60.0; // 2 C/min
-        var history = Linear(90f, slopePerSample, 30); // ends at 90 C
+        var history = Linear(90f, slopePerSample, 60); // ends at 90 C
 
         var result = HealthAnalyzer.Analyze(Snapshot((CpuTempId, history)), classification, thresholds, false);
 
@@ -206,7 +257,7 @@ public sealed class HealthAnalyzerTests
         var role = Role(CpuTempId, Roles.CpuTempControl, "/cpu/0");
         var classification = Classify(role);
         var thresholds = Thresholds((CpuTempId, 88, 95));
-        var history = Linear(50f, 1.0 / 60.0, 30); // 1 C/min, far below watch-5
+        var history = Linear(50f, 1.0 / 60.0, 60); // 1 C/min, far below watch-5
 
         var result = HealthAnalyzer.Analyze(Snapshot((CpuTempId, history)), classification, thresholds, false);
 
@@ -221,22 +272,38 @@ public sealed class HealthAnalyzerTests
         var classification = Classify(role);
         var thresholds = Thresholds((CpuTempId, 88, 95));
 
-        var result = HealthAnalyzer.Analyze(Snapshot((CpuTempId, Repeat(60f, 30))), classification, thresholds, false);
+        var result = HealthAnalyzer.Analyze(Snapshot((CpuTempId, Repeat(60f, 60))), classification, thresholds, false);
 
         Assert.Empty(result.Trends);
     }
 
     [Fact]
-    public void FewerThanTwentySamplesNeverProducesATrend()
+    public void FewerThanSixtySamplesNeverProducesATrend()
     {
+        // A ~20-sample window let a bursty CPU produce an alarming slope seconds after
+        // startup (live finding, 2026-09-27); 59 non-null samples -- one short of a full
+        // minute at 1 Hz -- must still be silent.
         var role = Role(CpuTempId, Roles.CpuTempControl, "/cpu/0");
         var classification = Classify(role);
         var thresholds = Thresholds((CpuTempId, 88, 95));
-        var history = Linear(50f, 5.0 / 60.0, 10);
+        var history = Linear(50f, 5.0 / 60.0, 59);
 
         var result = HealthAnalyzer.Analyze(Snapshot((CpuTempId, history)), classification, thresholds, false);
 
         Assert.Empty(result.Trends);
+    }
+
+    [Fact]
+    public void ExactlySixtySamplesIsEnoughForATrend()
+    {
+        var role = Role(CpuTempId, Roles.CpuTempControl, "/cpu/0");
+        var classification = Classify(role);
+        var thresholds = Thresholds((CpuTempId, 88, 95));
+        var history = Linear(50f, 5.0 / 60.0, 60);
+
+        var result = HealthAnalyzer.Analyze(Snapshot((CpuTempId, history)), classification, thresholds, false);
+
+        Assert.Single(result.Trends);
     }
 
     // ---- Rule 4: throttle -----------------------------------------------------------------

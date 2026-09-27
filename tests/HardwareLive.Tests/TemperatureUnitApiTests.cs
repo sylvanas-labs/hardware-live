@@ -71,8 +71,9 @@ public sealed class TemperatureUnitApiTests
         var frame = ClassificationFixtures.LoadFrame("amd-9800x3d_nvidia-5090_desktop");
         var store = new TelemetryStore();
         const double slopePerSample = 2.0 / 60.0;
-        var start = 95.6 - (29 * slopePerSample);
-        for (var index = 0; index < 30; index++)
+        const int sampleCount = 60; // >= HealthAnalyzer's MinTrendSamples (60, 1 min at 1 Hz)
+        var start = 95.6 - ((sampleCount - 1) * slopePerSample);
+        for (var index = 0; index < sampleCount; index++)
         {
             var value = (float)(start + (index * slopePerSample));
             var sensors = frame.Sensors

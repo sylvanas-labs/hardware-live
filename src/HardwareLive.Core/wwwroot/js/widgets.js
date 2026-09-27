@@ -7,6 +7,8 @@ import { el, setSanitizedText, setVar, clear } from './dom.js';
 import {
   formatValue,
   thresholdLevel,
+  resolveSensorLevel,
+  VALUE_UNIT_SEPARATOR,
   isLikelyDisconnected,
   isChartSeriesConnected,
   describeChart,
@@ -93,7 +95,7 @@ function buildSingleTile(sensorId, ctx) {
 function updateSingleTile(tile, sensorId, ctx) {
   const info = sensorInfo(sensorId, ctx);
   const value = latestValue(ctx, sensorId, info);
-  const level = thresholdLevel(value, info.threshold);
+  const level = resolveSensorLevel(sensorId, value, info.threshold, ctx.health?.sensorLevels);
   const hist = history(ctx, sensorId, info);
   const disconnected = isLikelyDisconnected(hist);
 
@@ -109,6 +111,10 @@ function updateSingleTile(tile, sensorId, ctx) {
   clear(valueNode);
   valueNode.append(document.createTextNode(formatValue(value, null, info.decimals)));
   if (info.unit) {
+    // Same separator formatValue() puts between a value and its unit (e.g. the peak line
+    // below), just split across two nodes so the unit can keep its muted, smaller style
+    // (docs/SPEC.md step5-polish "Tiles consistency": value/unit spacing must be consistent).
+    valueNode.append(document.createTextNode(VALUE_UNIT_SEPARATOR));
     valueNode.append(el('span', { className: 'unit', text: info.unit }));
   }
 
@@ -166,14 +172,9 @@ function drawSparkline(canvas, hist, level) {
   });
   ctx2d.stroke();
 
-  // The compact scale labels use already presentation-converted history, so temperatures
-  // switch between C and F without changing any stored samples.
-  ctx2d.fillStyle = cssVar('--muted');
-  ctx2d.font = '8px system-ui';
-  ctx2d.textAlign = 'right';
-  ctx2d.fillText(max.toFixed(1), w - 1, 8);
-  ctx2d.fillText(min.toFixed(1), w - 1, h - 1);
-  ctx2d.textAlign = 'start';
+  // No overlaid min/max numbers here on purpose: at this size they collide with each other
+  // and the line itself, and the tile already shows the current value plus a "peak" line
+  // (docs/SPEC.md step5-polish "Tiles consistency").
 }
 
 // One tile widget always covers exactly one sensor instance now -- app.js's render plan
@@ -358,7 +359,9 @@ function updateGaugeBody(body, entry, ctx) {
 
   const max = info?.threshold?.critical ?? (info?.unit === '%' ? 100 : null);
   const ratio = max ? Math.min(1, Math.max(0, (value ?? 0) / max)) : 0;
-  const level = thresholdLevel(value, info?.threshold);
+  const level = sensorId
+    ? resolveSensorLevel(sensorId, value, info?.threshold, ctx.health?.sensorLevels)
+    : thresholdLevel(value, info?.threshold);
   const scaleNode = body.querySelector('.gauge-scale');
   scaleNode.textContent = max == null ? '' : `0 – ${Math.round(max)} ${info?.unit ?? ''}`.trim();
   drawGauge(body.querySelector('canvas'), ratio, level);

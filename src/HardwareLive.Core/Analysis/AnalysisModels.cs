@@ -38,10 +38,18 @@ public sealed record Concern(string Level, string Role, string SensorId, string 
 /// defaults so every existing 4-argument call site keeps compiling.</summary>
 public sealed record Trend(string SensorId, string Role, double SlopePerMin, double? EtaMinutes, string Label = "");
 
+/// <summary><see cref="AnalysisResult.SensorLevels"/> keys are sensor ids, values are the exact
+/// three-state strings ("ok"/"watch"/"critical") the UI's own <c>thresholdLevel()</c> uses -- one
+/// entry for every sensor that has a resolved threshold and a finite current value, computed with
+/// the same rules (including the CPU Tjmax-by-design carve-out) that drive that sensor's concern,
+/// if any. This lets the UI color a tile/gauge exactly like the health panel instead of
+/// re-deriving a possibly-contradictory level from a bare value/threshold comparison
+/// (docs/SPEC.md analysis rule 2: a 9800X3D at 95 C holding clocks is WATCH, not CRITICAL).</summary>
 public sealed record AnalysisResult(
     HealthStatus Status,
     string? Reason,
     string Headline,
     string Phase,
     IReadOnlyList<Concern> Concerns,
-    IReadOnlyList<Trend> Trends);
+    IReadOnlyList<Trend> Trends,
+    IReadOnlyDictionary<string, string> SensorLevels);
