@@ -16,6 +16,7 @@ public sealed class RouteMatrixTests(RunningServerFixture fixture)
             ["/api/meta"] = ["GET"],
             ["/api/health"] = ["GET"],
             ["/api/notes"] = ["GET"],
+            ["/api/settings"] = ["GET", "PUT"],
             ["/app.css"] = ["GET"],
             ["/js/app.js"] = ["GET"],
             ["/js/logic.js"] = ["GET"],
@@ -99,6 +100,7 @@ public sealed class RouteMatrixTests(RunningServerFixture fixture)
                 """{"id":"matrix_item","name":"Matrix replace","widgets":[]}""",
             "/api/layouts/import" =>
                 """{"layouts":[{"id":"matrix_import","name":"Matrix import","widgets":[]}]}""",
+            "/api/settings" => """{"activePresetId":"builtin-overview"}""",
             _ => null,
         };
 

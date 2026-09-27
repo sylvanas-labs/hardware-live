@@ -3,12 +3,11 @@
 Full spec: [docs/SPEC.md](docs/SPEC.md) (APPROVED r4).
 
 ## Now
-- [ ] Next: Soon step 1 (presets: Overview/CPU/GPU/3D Gaming/Thermals/Cooling/Storage + custom save/export/import)
+- [ ] Next: Soon step 1 (FPS via PresentMon v2.6.0 + 3D Gaming preset wiring)
 
 ## Soon (in order)
-1. Presets (Overview/CPU/GPU/3D Gaming/Thermals/Cooling/Storage) + custom save/export/import in `layouts.json`
-2. FPS via PresentMon v2.6.0 (unelevated, Performance Log Users opt-in) + 3D Gaming preset wiring
-3. `install.ps1`/`uninstall.ps1`, with these requirements:
+1. FPS via PresentMon v2.6.0 (unelevated, Performance Log Users opt-in) + 3D Gaming preset wiring
+2. `install.ps1`/`uninstall.ps1`, with these requirements:
    - Install to `Program Files\HardwareLive\{app,sampler}\`, kept as separate folders.
    - `HL-Sampler` task runs as **SYSTEM** with `--user-sid`; `HL-App` task runs unelevated.
    - Launcher opens `http://127.0.0.1:<port>`, not `localhost` (the server binds IPv4 loopback only).
@@ -22,6 +21,11 @@ Full spec: [docs/SPEC.md](docs/SPEC.md) (APPROVED r4).
 - Light theme polish, CSV export of a session, alert sounds
 
 ## Done
+- 2026-09-27 Presets complete (step 6): compiled Overview/CPU/GPU/3D Gaming/Thermals/
+  Cooling/Storage presets, atomic `%LOCALAPPDATA%\HardwareLive\layouts.json` custom-layout
+  persistence and recovery, active preset + °C/°F settings, custom CRUD/fork/export/import,
+  portable role/exact-sensor refs, headroom/focus ordering, unavailable-widget reporting, and
+  server/client temperature presentation conversion
 - 2026-09-27 UI polish pass: `/api/meta` `labels` map (role title + disambiguating subtitle,
   replacing raw LHM names on tiles/legends/trends/picker), one grid tile per multi-instance
   sensor (`grid-auto-flow: dense`), °C everywhere, chart titles by content+unit with an

@@ -13,13 +13,31 @@
   <h1>Hardware Live</h1>
   <span id="connection-pill" class="pill" role="status" aria-live="polite">connecting&hellip;</span>
   <div class="header-actions">
+    <label class="sr-only" for="preset-select">Preset</label>
+    <select id="preset-select" class="preset-select" aria-label="Active preset"></select>
+    <div class="temperature-toggle" role="group" aria-label="Temperature unit">
+      <button type="button" id="temperature-c" class="btn" aria-pressed="true">&deg;C</button>
+      <button type="button" id="temperature-f" class="btn" aria-pressed="false">&deg;F</button>
+    </div>
+    <button type="button" id="preset-menu-toggle" class="btn" aria-expanded="false" aria-controls="preset-menu">Preset menu</button>
     <button type="button" id="edit-toggle" class="btn" aria-pressed="false">Edit layout</button>
     <button type="button" id="add-widget-btn" class="btn" hidden>Add widget&hellip;</button>
   </div>
 </header>
 
+<div id="preset-menu" class="preset-menu" hidden>
+  <button type="button" id="preset-save-new" class="btn">Save as new</button>
+  <button type="button" id="preset-rename" class="btn">Rename</button>
+  <button type="button" id="preset-duplicate" class="btn">Duplicate</button>
+  <button type="button" id="preset-delete" class="btn">Delete</button>
+  <button type="button" id="preset-export" class="btn">Export</button>
+  <button type="button" id="preset-import" class="btn">Import</button>
+  <input id="preset-import-file" type="file" accept="application/json,.json" hidden>
+</div>
+
 <div id="connection-banner" class="banner" role="alert" hidden></div>
 <div id="unavailable-banner" class="banner banner-info" role="status" hidden></div>
+<div id="preset-status" class="banner banner-info" role="status" hidden></div>
 
 <nav id="quick-filter-bar" class="quick-filter-bar" aria-label="Quick filters"></nav>
 
@@ -47,6 +65,29 @@
     </div>
     <div class="picker-actions">
       <button type="button" id="picker-cancel" class="btn">Cancel</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="preset-name-dialog" aria-labelledby="preset-name-title">
+  <form method="dialog" class="preset-dialog-form">
+    <h2 id="preset-name-title">Preset name</h2>
+    <label for="preset-name-input">Name</label>
+    <input id="preset-name-input" type="text" maxlength="100" required>
+    <div class="picker-actions">
+      <button type="button" id="preset-name-cancel" class="btn">Cancel</button>
+      <button type="submit" id="preset-name-submit" class="btn btn-primary">Save</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="preset-delete-dialog" aria-labelledby="preset-delete-title">
+  <form method="dialog" class="preset-dialog-form">
+    <h2 id="preset-delete-title">Delete preset?</h2>
+    <p id="preset-delete-message"></p>
+    <div class="picker-actions">
+      <button type="button" id="preset-delete-cancel" class="btn">Cancel</button>
+      <button type="submit" id="preset-delete-confirm" class="btn btn-danger">Delete</button>
     </div>
   </form>
 </dialog>

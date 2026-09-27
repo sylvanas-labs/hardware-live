@@ -9,6 +9,8 @@ internal static class LayoutJson
         "id",
         "name",
         "widgets",
+        "focus",
+        "sort",
     };
 
     private static readonly HashSet<string> WidgetProperties = new(StringComparer.Ordinal)
@@ -34,6 +36,12 @@ internal static class LayoutJson
         "layouts",
     };
 
+    private static readonly HashSet<string> SettingsProperties = new(StringComparer.Ordinal)
+    {
+        "activePresetId",
+        "temperatureUnit",
+    };
+
     private static readonly HashSet<string> WidgetKinds = new(StringComparer.Ordinal)
     {
         "tile",
@@ -48,6 +56,18 @@ internal static class LayoutJson
         "S",
         "M",
         "L",
+    };
+
+    private static readonly HashSet<string> FocusValues = new(StringComparer.Ordinal)
+    {
+        "cpu",
+        "gpu",
+        "gaming",
+    };
+
+    private static readonly HashSet<string> SortValues = new(StringComparer.Ordinal)
+    {
+        "headroom",
     };
 
     public static bool TryParseLayout(ReadOnlyMemory<byte> json, out Layout? layout)
@@ -100,7 +120,63 @@ internal static class LayoutJson
         }
     }
 
-    private static bool TryParseLayout(JsonElement element, out Layout? layout)
+    public static bool TryParseSettings(ReadOnlyMemory<byte> json, out LayoutSettingsUpdate? update)
+    {
+        update = null;
+        try
+        {
+            using var document = JsonDocument.Parse(json);
+            var root = document.RootElement;
+            if (root.ValueKind != JsonValueKind.Object ||
+                !HasOnlyUniqueProperties(root, SettingsProperties) ||
+                !root.EnumerateObject().Any())
+            {
+                return false;
+            }
+
+            var hasActivePresetId = root.TryGetProperty("activePresetId", out var activeElement);
+            string? activePresetId = null;
+            if (hasActivePresetId)
+            {
+                if (activeElement.ValueKind == JsonValueKind.String)
+                {
+                    activePresetId = activeElement.GetString();
+                    if (activePresetId is null || !IsSyntacticallyValidId(activePresetId))
+                    {
+                        return false;
+                    }
+                }
+                else if (activeElement.ValueKind != JsonValueKind.Null)
+                {
+                    return false;
+                }
+            }
+
+            var hasTemperatureUnit = root.TryGetProperty("temperatureUnit", out var unitElement);
+            string? temperatureUnit = null;
+            if (hasTemperatureUnit)
+            {
+                if (unitElement.ValueKind != JsonValueKind.String ||
+                    (temperatureUnit = unitElement.GetString()) is not ("C" or "F"))
+                {
+                    return false;
+                }
+            }
+
+            update = new LayoutSettingsUpdate(
+                hasActivePresetId,
+                activePresetId,
+                hasTemperatureUnit,
+                temperatureUnit);
+            return true;
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
+    }
+
+    internal static bool TryParseLayout(JsonElement element, out Layout? layout)
     {
         layout = null;
         if (element.ValueKind != JsonValueKind.Object ||
@@ -127,7 +203,13 @@ internal static class LayoutJson
             widgets.Add(widget!);
         }
 
-        layout = new Layout(id, name, widgets);
+        if (!TryGetOptionalEnum(element, "focus", FocusValues, out var focus) ||
+            !TryGetOptionalEnum(element, "sort", SortValues, out var sort))
+        {
+            return false;
+        }
+
+        layout = new Layout(id, name, widgets, focus, sort);
         return true;
     }
 
@@ -242,9 +324,16 @@ internal static class LayoutJson
 
     // "import" is reserved: /api/layouts/import is routed to the import handler,
     // so a layout with that ID could never be updated or deleted.
+    internal static bool IsReservedLayoutId(string id) =>
+        id.StartsWith("builtin-", StringComparison.OrdinalIgnoreCase);
+
     private static bool IsValidLayoutId(string id) =>
-        id.Length is >= 1 and <= 64 &&
+        IsSyntacticallyValidId(id) &&
         !id.Equals("import", StringComparison.OrdinalIgnoreCase) &&
+        !IsReservedLayoutId(id);
+
+    private static bool IsSyntacticallyValidId(string id) =>
+        id.Length is >= 1 and <= 64 &&
         id.All(character =>
             character is >= 'A' and <= 'Z' or >= 'a' and <= 'z' or >= '0' and <= '9' or '_' or '-');
 
@@ -286,4 +375,31 @@ internal static class LayoutJson
         value = property.GetString();
         return value is not null;
     }
+
+    private static bool TryGetOptionalEnum(
+        JsonElement element,
+        string propertyName,
+        IReadOnlySet<string> allowed,
+        out string? value)
+    {
+        value = null;
+        if (!element.TryGetProperty(propertyName, out var property) || property.ValueKind == JsonValueKind.Null)
+        {
+            return true;
+        }
+
+        if (property.ValueKind != JsonValueKind.String)
+        {
+            return false;
+        }
+
+        value = property.GetString();
+        return value is not null && allowed.Contains(value);
+    }
 }
+
+internal sealed record LayoutSettingsUpdate(
+    bool HasActivePresetId,
+    string? ActivePresetId,
+    bool HasTemperatureUnit,
+    string? TemperatureUnit);

@@ -7,12 +7,14 @@ import { el, setSanitizedText, setVar, clear } from './dom.js';
 import {
   formatValue,
   thresholdLevel,
-  unitForSensorType,
   isLikelyDisconnected,
   isChartSeriesConnected,
   describeChart,
   ageMinutesLabel,
   formatTrendText,
+  displaySensorValue,
+  convertTemperature,
+  orderConcernsForFocus,
 } from './logic.js';
 
 const SPARK_SAMPLES = 60;
@@ -33,27 +35,40 @@ function sensorInfo(sensorId, ctx) {
   const sensor = ctx.meta.sensors.find((s) => s.id === sensorId);
   const role = ctx.meta.roles.find((r) => r.sensorId === sensorId);
   const label = ctx.meta.labels?.[sensorId];
-  const unit = unitForSensorType(sensor?.type);
-  const decimals = unit === '°C' || unit === '%' || unit === 'W' || unit === 'V' ? 1 : 0;
+  const display = displaySensorValue(null, sensor?.type, ctx.temperatureUnit);
+  const temperature = sensor?.type === 'Temperature';
+  const rawThreshold = ctx.thresholds?.[sensorId] ?? null;
+  const threshold = rawThreshold && temperature
+    ? {
+        ...rawThreshold,
+        watch: convertTemperature(rawThreshold.watch, ctx.temperatureUnit),
+        critical: convertTemperature(rawThreshold.critical, ctx.temperatureUnit),
+      }
+    : rawThreshold;
   return {
     title: label?.title ?? sensor?.name ?? sensorId,
     subtitle: label?.subtitle ?? null,
     name: sensor?.name ?? sensorId,
     hardwareId: sensor?.hardwareId,
-    unit,
-    decimals,
+    unit: display.unit,
+    decimals: display.decimals,
+    sensorType: sensor?.type,
     role: role?.role ?? null,
-    threshold: ctx.thresholds?.[sensorId] ?? null,
+    threshold,
   };
 }
 
-function latestValue(ctx, sensorId) {
+function latestValue(ctx, sensorId, info = sensorInfo(sensorId, ctx)) {
   const value = ctx.snapshot?.values?.[sensorId];
-  return typeof value === 'number' ? value : null;
+  if (typeof value !== 'number') return null;
+  return info.sensorType === 'Temperature' ? convertTemperature(value, ctx.temperatureUnit) : value;
 }
 
-function history(ctx, sensorId) {
-  return ctx.snapshot?.history?.[sensorId] ?? [];
+function history(ctx, sensorId, info = sensorInfo(sensorId, ctx)) {
+  const values = ctx.snapshot?.history?.[sensorId] ?? [];
+  return info.sensorType === 'Temperature'
+    ? values.map((value) => convertTemperature(value, ctx.temperatureUnit))
+    : values;
 }
 
 // ---- Tile -----------------------------------------------------------------------------
@@ -67,18 +82,19 @@ function buildSingleTile(sensorId, ctx) {
   const value = el('div', { className: 'tile-value' });
   const status = el('div', { className: 'tile-status' });
   const spark = el('canvas', { className: 'tile-spark', attrs: { width: 160, height: 26, 'aria-hidden': 'true' } });
+  const peak = el('div', { className: 'tile-peak' });
   const bar = el('div', { className: 'tile-bar' });
 
-  tile.append(label, subtitle, value, status, spark, bar);
+  tile.append(label, subtitle, value, status, spark, peak, bar);
   updateSingleTile(tile, sensorId, ctx);
   return tile;
 }
 
 function updateSingleTile(tile, sensorId, ctx) {
   const info = sensorInfo(sensorId, ctx);
-  const value = latestValue(ctx, sensorId);
+  const value = latestValue(ctx, sensorId, info);
   const level = thresholdLevel(value, info.threshold);
-  const hist = history(ctx, sensorId);
+  const hist = history(ctx, sensorId, info);
   const disconnected = isLikelyDisconnected(hist);
 
   tile.classList.toggle('level-watch', level === 'watch');
@@ -102,6 +118,20 @@ function updateSingleTile(tile, sensorId, ctx) {
   const statusNode = tile.querySelector('.tile-status');
   statusNode.className = `tile-status${level ? ` level-${level}` : ''}`;
   statusNode.textContent = disconnected ? 'not connected' : level && level !== 'ok' ? level.toUpperCase() : '';
+
+  const peakNode = tile.querySelector('.tile-peak');
+  const finiteHistory = hist.filter((sample) => Number.isFinite(sample));
+  const peak = finiteHistory.length ? Math.max(...finiteHistory) : null;
+  peakNode.textContent = peak == null ? '' : `peak ${formatValue(peak, info.unit, info.decimals)}`;
+
+  if (info.threshold) {
+    tile.setAttribute(
+      'title',
+      `Watch ${Math.round(info.threshold.watch)} ${info.unit}; critical ${Math.round(info.threshold.critical)} ${info.unit}`,
+    );
+  } else {
+    tile.removeAttribute('title');
+  }
 
   const barNode = tile.querySelector('.tile-bar');
   const barColor = level ? `var(--${level === 'ok' ? 'ok' : level})` : 'var(--ok)';
@@ -135,6 +165,15 @@ function drawSparkline(canvas, hist, level) {
     index === 0 ? ctx2d.moveTo(x, y) : ctx2d.lineTo(x, y);
   });
   ctx2d.stroke();
+
+  // The compact scale labels use already presentation-converted history, so temperatures
+  // switch between C and F without changing any stored samples.
+  ctx2d.fillStyle = cssVar('--muted');
+  ctx2d.font = '8px system-ui';
+  ctx2d.textAlign = 'right';
+  ctx2d.fillText(max.toFixed(1), w - 1, 8);
+  ctx2d.fillText(min.toFixed(1), w - 1, h - 1);
+  ctx2d.textAlign = 'start';
 }
 
 // One tile widget always covers exactly one sensor instance now -- app.js's render plan
@@ -266,7 +305,8 @@ function drawChart(canvas, series, fixedMax) {
     ctx2d.moveTo(padLeft, y);
     ctx2d.lineTo(padLeft + w, y);
     ctx2d.stroke();
-    ctx2d.fillText(Math.round(v).toString(), 2, y + 4);
+    const temperatureAxis = series.length > 0 && series.every((item) => item.info.unit === '°C' || item.info.unit === '°F');
+    ctx2d.fillText(temperatureAxis ? v.toFixed(1) : Math.round(v).toString(), 2, y + 4);
   }
 
   for (const s of series) {
@@ -299,7 +339,8 @@ function buildGaugeBody(body, entry, ctx) {
   const label = el('div', { className: 'tile-label' });
   const canvas = el('canvas', { attrs: { width: 120, height: 70, 'aria-hidden': 'true' } });
   const value = el('div', { className: 'gauge-value' });
-  wrap.append(label, canvas, value);
+  const scale = el('div', { className: 'gauge-scale' });
+  wrap.append(label, canvas, value, scale);
   body.append(wrap);
   updateGaugeBody(body, entry, ctx);
 }
@@ -307,7 +348,7 @@ function buildGaugeBody(body, entry, ctx) {
 function updateGaugeBody(body, entry, ctx) {
   const sensorId = entry.ids?.[0];
   const info = sensorId ? sensorInfo(sensorId, ctx) : null;
-  const value = sensorId ? latestValue(ctx, sensorId) : null;
+  const value = sensorId ? latestValue(ctx, sensorId, info) : null;
   const label = body.querySelector('.tile-label');
   setSanitizedText(label, info?.title ?? 'Unavailable');
 
@@ -318,6 +359,8 @@ function updateGaugeBody(body, entry, ctx) {
   const max = info?.threshold?.critical ?? (info?.unit === '%' ? 100 : null);
   const ratio = max ? Math.min(1, Math.max(0, (value ?? 0) / max)) : 0;
   const level = thresholdLevel(value, info?.threshold);
+  const scaleNode = body.querySelector('.gauge-scale');
+  scaleNode.textContent = max == null ? '' : `0 – ${Math.round(max)} ${info?.unit ?? ''}`.trim();
   drawGauge(body.querySelector('canvas'), ratio, level);
 }
 
@@ -389,7 +432,7 @@ function updateAnalysisBody(body, entry, ctx) {
   headline.append(document.createTextNode(text));
 
   clear(concernList);
-  const concerns = health?.concerns ?? [];
+  const concerns = orderConcernsForFocus(health?.concerns ?? [], ctx.focus);
   if (concerns.length === 0) {
     const none = el('li', { text: starting || !health ? 'Waiting for data.' : 'No concerns right now.' });
     concernList.append(none);
@@ -417,7 +460,10 @@ function updateAnalysisBody(body, entry, ctx) {
       const item = el('li');
       const nameNode = document.createElement('span');
       const suffix = info.subtitle ? ` (${info.subtitle})` : '';
-      const text = formatTrendText(trend, info.unit, latestValue(ctx, trend.sensorId), info.threshold);
+      const trendUnit = typeof trend.unit === 'string' && trend.unit.endsWith('/min')
+        ? trend.unit.slice(0, -4)
+        : info.unit;
+      const text = formatTrendText(trend, trendUnit, latestValue(ctx, trend.sensorId, info), info.threshold);
       setSanitizedText(nameNode, `${title}${suffix}: ${text}`);
       item.append(nameNode);
       trendList.append(item);

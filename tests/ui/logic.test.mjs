@@ -25,6 +25,12 @@ import {
   isChartSeriesConnected,
   describeChart,
   groupForRole,
+  convertTemperature,
+  displaySensorValue,
+  temperatureUnitForLanguage,
+  sortByHeadroom,
+  orderConcernsForFocus,
+  forkPresetName,
 } from '../../src/HardwareLive.Core/wwwroot/js/logic.js';
 
 test('unitForSensorType maps every documented sensor type', () => {
@@ -94,6 +100,27 @@ test('resolveWidgetRef expands a bare role to every matching sensor in identifie
 test('resolveWidgetRef resolves an exact id when present on this PC', () => {
   const meta = { sensors: [{ id: '/cpu/0/temp/1' }], roles: [] };
   assert.deepEqual(resolveWidgetRef({ id: '/cpu/0/temp/1', hw: 'CPU' }, meta), ['/cpu/0/temp/1']);
+});
+
+test('resolveWidgetRef requires the saved hardware to match when hardware metadata is available', () => {
+  const meta = {
+    hardware: [
+      { id: '/cpu/0', name: 'CPU A' },
+      { id: '/cpu/1', name: 'CPU B' },
+    ],
+    sensors: [
+      { id: '/cpu/0/temp/1', hardwareId: '/cpu/0' },
+      { id: '/cpu/1/temp/1', hardwareId: '/cpu/1' },
+    ],
+    roles: [{ sensorId: '/cpu/1/temp/1', role: 'cpu.temp.control' }],
+  };
+  assert.deepEqual(resolveWidgetRef({ id: '/cpu/0/temp/1', hw: '/cpu/0' }, meta), ['/cpu/0/temp/1']);
+  assert.deepEqual(resolveWidgetRef({ id: '/cpu/0/temp/1', hw: 'CPU A' }, meta), ['/cpu/0/temp/1']);
+  assert.deepEqual(
+    resolveWidgetRef({ id: '/cpu/0/temp/1', hw: '/cpu/1', role: 'cpu.temp.control' }, meta),
+    ['/cpu/1/temp/1'],
+    'a hardware mismatch skips the exact-id branch and uses the optional role fallback',
+  );
 });
 
 test('resolveWidgetRef falls back to the role when the exact id is missing', () => {
@@ -192,6 +219,69 @@ test('ageMinutesLabel hides the label under 30 minutes and includes source only 
   assert.deepEqual(ageMinutesLabel(45.6, 'a script'), { dimmed: true, text: 'from a script, 46 min ago' });
 });
 
+test('temperature conversion distinguishes absolute values from rates and deltas', () => {
+  assert.equal(convertTemperature(95.6, 'F'), 204.08);
+  assert.equal(convertTemperature(2, 'F', true), 3.6);
+  assert.equal(convertTemperature(10, 'F', true), 18);
+  assert.equal(convertTemperature(95.6, 'C'), 95.6);
+  assert.deepEqual(displaySensorValue(95.6, 'Temperature', 'F'), {
+    value: 204.08,
+    unit: '°F',
+    decimals: 1,
+  });
+});
+
+test('temperatureUnitForLanguage uses F only for US, Liberia and Myanmar regions', () => {
+  assert.equal(temperatureUnitForLanguage('en-US'), 'F');
+  assert.equal(temperatureUnitForLanguage('en-LR'), 'F');
+  assert.equal(temperatureUnitForLanguage('my-MM'), 'F');
+  assert.equal(temperatureUnitForLanguage('en-Latn-US'), 'F');
+  assert.equal(temperatureUnitForLanguage('en-GB'), 'C');
+  assert.equal(temperatureUnitForLanguage('de'), 'C');
+  assert.equal(temperatureUnitForLanguage('not_a_locale'), 'C');
+});
+
+test('sortByHeadroom puts the least remaining thermal headroom first and missing data last', () => {
+  const input = [
+    { id: 'cool', value: 50, critical: 100 },
+    { id: 'near', value: 94, critical: 95 },
+    { id: 'unknown', value: null, critical: 90 },
+    { id: 'middle', value: 80, critical: 95 },
+    { id: 'no-limit', value: 40, critical: null },
+  ];
+  assert.deepEqual(sortByHeadroom(input).map((item) => item.id), [
+    'near',
+    'middle',
+    'cool',
+    'unknown',
+    'no-limit',
+  ]);
+  assert.deepEqual(input.map((item) => item.id), ['cool', 'near', 'unknown', 'middle', 'no-limit']);
+});
+
+test('orderConcernsForFocus keeps focused concerns first, then critical concerns from other domains', () => {
+  const concerns = [
+    { role: 'storage.temp', level: 'watch', message: 'storage' },
+    { role: 'gpu.temp.core', level: 'critical', message: 'gpu critical' },
+    { role: 'cpu.temp.control', level: 'watch', message: 'cpu watch' },
+    { role: 'fan.cpu', level: 'critical', message: 'cpu fan critical' },
+  ];
+  assert.deepEqual(orderConcernsForFocus(concerns, 'cpu').map((item) => item.message), [
+    'cpu watch',
+    'cpu fan critical',
+    'gpu critical',
+    'storage',
+  ]);
+  assert.deepEqual(orderConcernsForFocus(concerns, null), concerns);
+});
+
+test('forkPresetName appends the required suffix without exceeding the server name limit', () => {
+  assert.equal(forkPresetName('CPU'), 'CPU (custom)');
+  const long = forkPresetName('x'.repeat(100));
+  assert.equal(long.length, 100);
+  assert.ok(long.endsWith(' (custom)'));
+});
+
 test('groupForRole buckets dotted role prefixes into quick-filter groups', () => {
   assert.equal(groupForRole('cpu.temp.control'), 'CPU');
   assert.equal(groupForRole('gpu.temp.core'), 'GPU');
@@ -224,6 +314,10 @@ test('isChartSeriesConnected excludes a series that is all zero/null across the 
 test('describeChart titles by content+unit and falls back to a custom title for mixed units', () => {
   assert.deepEqual(describeChart([{ title: 'CPU temperature', unit: '°C' }, { title: 'GPU temperature', unit: '°C' }]), {
     heading: 'Temperatures (°C)',
+    note: 'last 5 min',
+  });
+  assert.deepEqual(describeChart([{ title: 'CPU temperature', unit: '°F' }]), {
+    heading: 'Temperatures (°F)',
     note: 'last 5 min',
   });
   assert.deepEqual(describeChart([{ title: 'CPU load', unit: '%' }]), { heading: 'Load (%)', note: 'last 5 min' });
@@ -268,6 +362,11 @@ test('formatTrendText shows time-to-limit only near the watch level', async () =
   assert.equal(formatTrendText({ slopePerMin: 5.1, etaMinutes: 6 }, '°C', 64.5, threshold), 'rising 5.1 °C/min');
   // Within 10 degrees of watch: ETA shown.
   assert.equal(formatTrendText({ slopePerMin: 2, etaMinutes: 3.4 }, '°C', 80, threshold), 'rising 2.0 °C/min, ~3 min to limit');
+  assert.equal(
+    formatTrendText({ slopePerMin: 3.6, etaMinutes: 3.4 }, '°F', 176, { watch: 190.4, critical: 203 }),
+    'rising 3.6 °F/min, ~3 min to limit',
+    'the 10 °C proximity gate converts to an 18 °F delta',
+  );
   // Falling never shows an ETA; unknown threshold never shows an ETA.
   assert.equal(formatTrendText({ slopePerMin: -2, etaMinutes: 3 }, '°C', 90, threshold), 'falling 2.0 °C/min');
   assert.equal(formatTrendText({ slopePerMin: 2, etaMinutes: 3 }, '°C', 90, null), 'rising 2.0 °C/min');

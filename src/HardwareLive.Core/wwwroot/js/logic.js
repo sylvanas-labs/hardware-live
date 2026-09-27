@@ -20,8 +20,43 @@ const UNIT_BY_SENSOR_TYPE = {
   Factor: '',
 };
 
-export function unitForSensorType(type) {
+export function unitForSensorType(type, temperatureUnit = 'C') {
+  if (type === 'Temperature') {
+    return temperatureUnit === 'F' ? '°F' : '°C';
+  }
   return UNIT_BY_SENSOR_TYPE[type] ?? '';
+}
+
+/** Converts a Celsius value for presentation only. Deltas/rates deliberately omit +32. */
+export function convertTemperature(value, temperatureUnit, delta = false) {
+  if (value == null || !Number.isFinite(value) || temperatureUnit !== 'F') {
+    return value;
+  }
+
+  const converted = delta ? value * 9 / 5 : value * 9 / 5 + 32;
+  // Stabilize binary floating-point noise at the presentation boundary. This is still much
+  // more precise than the one-decimal UI while making values deterministic for callers.
+  return Number(converted.toFixed(10));
+}
+
+/** Presentation value/unit for one sensor. Internal snapshot values always remain Celsius. */
+export function displaySensorValue(value, sensorType, temperatureUnit = 'C') {
+  const temperature = sensorType === 'Temperature';
+  return {
+    value: temperature ? convertTemperature(value, temperatureUnit) : value,
+    unit: unitForSensorType(sensorType, temperatureUnit),
+    decimals: temperature || ['Load', 'Level', 'Control', 'Power', 'Voltage'].includes(sensorType) ? 1 : 0,
+  };
+}
+
+/** Browser-locale proposal used only while the persisted setting is unset. */
+export function temperatureUnitForLanguage(language) {
+  try {
+    const region = new Intl.Locale(language).region;
+    return ['US', 'LR', 'MM'].includes(region) ? 'F' : 'C';
+  } catch {
+    return 'C';
+  }
 }
 
 /** Hardware-kind picker chips (docs/SPEC.md step5 feature 5). */
@@ -97,10 +132,16 @@ export function resolveWidgetRef(ref, meta) {
 
   const sensors = Array.isArray(meta?.sensors) ? meta.sensors : [];
   const roles = Array.isArray(meta?.roles) ? meta.roles : [];
+  const hardware = Array.isArray(meta?.hardware) ? meta.hardware : [];
 
   if (ref.id) {
     const exact = sensors.find((sensor) => sensor.id === ref.id);
-    if (exact) {
+    const exactHardware = exact?.hardwareId
+      ? hardware.find((item) => item.id === exact.hardwareId)
+      : null;
+    const hardwareMatches = !ref.hw || !exact?.hardwareId ||
+      ref.hw === exact.hardwareId || ref.hw === exactHardware?.id || ref.hw === exactHardware?.name;
+    if (exact && hardwareMatches) {
       return [exact.id];
     }
   }
@@ -288,6 +329,7 @@ export function isChartSeriesConnected(data) {
 
 const CHART_HEADING_BY_UNIT = {
   '°C': 'Temperatures (°C)',
+  '°F': 'Temperatures (°F)',
   W: 'Power (W)',
   '%': 'Load (%)',
   RPM: 'Fans (RPM)',
@@ -331,13 +373,73 @@ export function formatTrendText(trend, unit, currentValue, threshold) {
   const direction = trend.slopePerMin > 0 ? 'rising' : 'falling';
   const rateUnit = unit ? ` ${unit}/min` : '/min';
   let text = `${direction} ${Math.abs(trend.slopePerMin).toFixed(1)}${rateUnit}`;
+  const nearLimitDelta = unit === '°F' ? 18 : 10;
   const nearLimit =
     typeof currentValue === 'number' &&
     threshold != null &&
     typeof threshold.watch === 'number' &&
-    currentValue >= threshold.watch - 10;
+    currentValue >= threshold.watch - nearLimitDelta;
   if (trend.etaMinutes != null && trend.slopePerMin > 0 && nearLimit) {
     text += `, ~${Math.max(1, Math.round(trend.etaMinutes))} min to limit`;
   }
   return text;
+}
+
+/** Stable ascending sort by remaining headroom to the critical threshold. */
+export function sortByHeadroom(items, valueFor = (item) => item.value, criticalFor = (item) => item.critical) {
+  return items
+    .map((item, index) => ({ item, index }))
+    .sort((left, right) => {
+      const leftValue = valueFor(left.item);
+      const rightValue = valueFor(right.item);
+      const leftCritical = criticalFor(left.item);
+      const rightCritical = criticalFor(right.item);
+      const leftHeadroom = Number.isFinite(leftValue) && Number.isFinite(leftCritical)
+        ? leftCritical - leftValue
+        : Number.POSITIVE_INFINITY;
+      const rightHeadroom = Number.isFinite(rightValue) && Number.isFinite(rightCritical)
+        ? rightCritical - rightValue
+        : Number.POSITIVE_INFINITY;
+      return leftHeadroom - rightHeadroom || left.index - right.index;
+    })
+    .map(({ item }) => item);
+}
+
+function concernMatchesFocus(concern, focus) {
+  const role = concern?.role ?? '';
+  if (focus === 'cpu') {
+    return role.startsWith('cpu.') || role === 'fan.cpu' || role === 'fan.cpu.opt' || role === 'fan.pump';
+  }
+  if (focus === 'gpu') {
+    return role.startsWith('gpu.');
+  }
+  if (focus === 'gaming') {
+    return role.startsWith('fps.') || role.startsWith('frametime.') || role.startsWith('cpu.') ||
+      role.startsWith('gpu.') || role.startsWith('ram.');
+  }
+  return false;
+}
+
+/** Focused domain first; off-domain critical concerns next; all remaining concerns follow. */
+export function orderConcernsForFocus(concerns, focus) {
+  const list = Array.isArray(concerns) ? concerns : [];
+  if (!focus) {
+    return list.slice();
+  }
+
+  const focused = [];
+  const critical = [];
+  const remaining = [];
+  for (const concern of list) {
+    if (concernMatchesFocus(concern, focus)) focused.push(concern);
+    else if (concern?.level === 'critical') critical.push(concern);
+    else remaining.push(concern);
+  }
+  return [...focused, ...critical, ...remaining];
+}
+
+export function forkPresetName(name) {
+  const suffix = ' (custom)';
+  const base = String(name ?? '').slice(0, 100 - suffix.length).trimEnd() || 'Preset';
+  return `${base}${suffix}`;
 }

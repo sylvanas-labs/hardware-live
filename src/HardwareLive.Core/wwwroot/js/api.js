@@ -19,7 +19,7 @@ export async function getJson(path) {
   return response.json();
 }
 
-export async function writeLayout(token, method, path, body) {
+export async function writeJson(token, method, path, body) {
   const response = await fetch(path, {
     method,
     cache: 'no-store',
@@ -34,8 +34,15 @@ export async function writeLayout(token, method, path, body) {
     throw new Error(`${path} failed: ${response.status}`);
   }
 
-  return response;
+  if (response.status === 204 || response.headers.get('content-length') === '0') {
+    return null;
+  }
+
+  const contentType = response.headers.get('content-type') ?? '';
+  return contentType.includes('application/json') ? response.json() : null;
 }
+
+export const writeLayout = writeJson;
 
 /**
  * Polls `fetchOne` every `intervalMs`. On a failed request it backs off to `backoffMs`

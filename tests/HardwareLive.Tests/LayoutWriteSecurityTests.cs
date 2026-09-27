@@ -13,6 +13,7 @@ public sealed class LayoutWriteSecurityTests(RunningServerFixture fixture)
         yield return ["PUT", "/api/layouts/protected", """{"id":"protected","name":"Protected","widgets":[]}"""];
         yield return ["DELETE", "/api/layouts/protected", null!];
         yield return ["POST", "/api/layouts/import", """{"layouts":[]}"""];
+        yield return ["PUT", "/api/settings", """{"activePresetId":"builtin-overview"}"""];
     }
 
     public static IEnumerable<object[]> InvalidLayoutBodies()
@@ -59,6 +60,10 @@ public sealed class LayoutWriteSecurityTests(RunningServerFixture fixture)
         yield return ["chart max negative", """{"id":"valid","name":"Name","widgets":[{"kind":"chart","size":"L","series":[{"role":"cpu.temp"}],"max":-1}]}"""];
         yield return ["non-chart with series", """{"id":"valid","name":"Name","widgets":[{"kind":"tile","size":"S","ref":{"role":"cpu.temp"},"series":[{"role":"gpu.temp"}]}]}"""];
         yield return ["non-chart with max", """{"id":"valid","name":"Name","widgets":[{"kind":"tile","size":"S","ref":{"role":"cpu.temp"},"max":100}]}"""];
+        yield return ["invalid focus", """{"id":"valid","name":"Name","widgets":[],"focus":"storage"}"""];
+        yield return ["non-string focus", """{"id":"valid","name":"Name","widgets":[],"focus":1}"""];
+        yield return ["invalid sort", """{"id":"valid","name":"Name","widgets":[],"sort":"name"}"""];
+        yield return ["non-string sort", """{"id":"valid","name":"Name","widgets":[],"sort":1}"""];
     }
 
     private static string ChartWithSeriesCount(int count)
@@ -125,6 +130,8 @@ public sealed class LayoutWriteSecurityTests(RunningServerFixture fixture)
             {
               "id": "all_widgets",
               "name": "All widgets",
+              "focus": "gaming",
+              "sort": "headroom",
               "widgets": [
                 { "kind": "tile", "size": "S", "ref": { "role": "cpu.temp" } },
                 { "kind": "chart", "size": "M", "ref": { "id": "/cpu/0", "hw": "CPU" } },

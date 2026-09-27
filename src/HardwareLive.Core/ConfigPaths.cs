@@ -32,4 +32,10 @@ public static class ConfigPaths
             "HardwareLive");
         return Path.Combine(directory, "notes.json");
     }
+
+    /// <summary>Resolves the directory containing the per-user layouts.json document.</summary>
+    public static string ResolveLayoutsDirectory(string? layoutsDirectory = null) =>
+        layoutsDirectory ?? Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "HardwareLive");
 }

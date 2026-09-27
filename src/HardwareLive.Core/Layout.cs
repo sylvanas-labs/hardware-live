@@ -1,6 +1,11 @@
 namespace HardwareLive.Core;
 
-public sealed record Layout(string Id, string Name, IReadOnlyList<LayoutWidget> Widgets);
+public sealed record Layout(
+    string Id,
+    string Name,
+    IReadOnlyList<LayoutWidget> Widgets,
+    string? Focus = null,
+    string? Sort = null);
 
 /// <summary>One widget in a layout. Non-chart kinds always carry <see cref="Ref"/> and never
 /// <see cref="Series"/>/<see cref="Max"/>. A chart carries exactly one of <see cref="Ref"/>

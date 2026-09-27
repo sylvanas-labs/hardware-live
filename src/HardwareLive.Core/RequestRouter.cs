@@ -16,7 +16,7 @@ internal sealed class RequestRouter
     private static readonly JsonSerializerOptions JsonOptions = CreateJsonOptions();
     private readonly byte[] _token;
     private readonly string _tokenText;
-    private readonly InMemoryLayoutStore _layouts;
+    private readonly FileLayoutStore _layouts;
     private readonly ITelemetrySource _telemetry;
     private readonly UserThresholdConfig _thresholdConfig;
     private readonly ClassificationCache _classification = new();
@@ -34,7 +34,7 @@ internal sealed class RequestRouter
     public RequestRouter(
         byte[] token,
         string tokenText,
-        InMemoryLayoutStore layouts,
+        FileLayoutStore layouts,
         ITelemetrySource telemetry,
         UserThresholdConfig? thresholdConfig = null,
         TimeProvider? clock = null,
@@ -75,6 +75,12 @@ internal sealed class RequestRouter
         if (path == "/api/notes")
         {
             await HandleNotes(context);
+            return;
+        }
+
+        if (path == "/api/settings")
+        {
+            await HandleSettings(context);
             return;
         }
 
@@ -280,21 +286,23 @@ internal sealed class RequestRouter
                 var snapshot = _telemetry.GetSnapshot(sensorIds);
                 var thresholds = ThresholdResolver.Resolve(frame, classification, _thresholdConfig);
                 var result = HealthAnalyzer.Analyze(snapshot, classification, thresholds, _thresholdConfig.Invalid);
-                await WriteJson(context, new
-                {
-                    status = result.Status,
-                    reason = result.Reason,
-                    headline = result.Headline,
-                    phase = result.Phase,
-                    concerns = result.Concerns,
-                    trends = result.Trends,
-                    uptimeSeconds,
-                });
+                var unit = _layouts.GetSettings().TemperatureUnit ?? "C";
+                await WriteJson(context, HealthResponsePresenter.Present(
+                    result,
+                    unit,
+                    _layouts.SavedLayoutsCouldNotBeRead,
+                    uptimeSeconds));
                 return;
             }
         }
 
-        await WriteJson(context, new { status = "UNKNOWN", reason, uptimeSeconds });
+        await WriteJson(context, new
+        {
+            status = "UNKNOWN",
+            reason,
+            concerns = HealthResponsePresenter.RecoveryConcerns(_layouts.SavedLayoutsCouldNotBeRead),
+            uptimeSeconds,
+        });
     }
 
     private async Task HandleSnapshot(HttpContext context)
@@ -332,7 +340,15 @@ internal sealed class RequestRouter
     {
         if (HttpMethods.IsGet(context.Request.Method))
         {
-            await WriteJson(context, _layouts.List());
+            await WriteJson(context, _layouts.List().Select(item => new
+            {
+                item.Layout.Id,
+                item.Layout.Name,
+                item.Layout.Widgets,
+                item.Layout.Focus,
+                item.Layout.Sort,
+                item.Builtin,
+            }));
             return;
         }
 
@@ -361,9 +377,16 @@ internal sealed class RequestRouter
             return;
         }
 
-        if (!_layouts.Create(layout!))
+        var result = _layouts.Create(layout!);
+        if (result == LayoutWriteResult.Conflict)
         {
             await EmptyStatus(context, StatusCodes.Status409Conflict);
+            return;
+        }
+
+        if (result != LayoutWriteResult.Success)
+        {
+            await EmptyStatus(context, StatusCodes.Status400BadRequest);
             return;
         }
 
@@ -372,6 +395,24 @@ internal sealed class RequestRouter
 
     private async Task HandleLayout(HttpContext context, string id)
     {
+        if (LayoutJson.IsReservedLayoutId(id))
+        {
+            if (HttpMethods.IsPut(context.Request.Method) || HttpMethods.IsDelete(context.Request.Method))
+            {
+                if (!Authorize(context))
+                {
+                    await EmptyStatus(context, StatusCodes.Status403Forbidden);
+                    return;
+                }
+
+                await EmptyStatus(context, StatusCodes.Status400BadRequest);
+                return;
+            }
+
+            await MethodNotAllowed(context);
+            return;
+        }
+
         if (HttpMethods.IsPut(context.Request.Method))
         {
             if (!Authorize(context))
@@ -394,7 +435,11 @@ internal sealed class RequestRouter
                 return;
             }
 
-            _layouts.Replace(layout);
+            if (_layouts.Replace(layout) != LayoutWriteResult.Success)
+            {
+                await EmptyStatus(context, StatusCodes.Status400BadRequest);
+                return;
+            }
             await EmptyStatus(context, StatusCodes.Status200OK);
             return;
         }
@@ -407,7 +452,11 @@ internal sealed class RequestRouter
                 return;
             }
 
-            _layouts.Delete(id);
+            if (_layouts.Delete(id) != LayoutWriteResult.Success)
+            {
+                await EmptyStatus(context, StatusCodes.Status400BadRequest);
+                return;
+            }
             await EmptyStatus(context, StatusCodes.Status204NoContent);
             return;
         }
@@ -442,8 +491,60 @@ internal sealed class RequestRouter
             return;
         }
 
-        _layouts.Import(layouts!);
-        await WriteJson(context, new { imported = layouts!.Count });
+        var result = _layouts.Import(layouts!);
+        if (!result.Success)
+        {
+            await EmptyStatus(context, StatusCodes.Status400BadRequest);
+            return;
+        }
+
+        await WriteJson(context, new { imported = result.Imported, renamed = result.Renamed });
+    }
+
+    private async Task HandleSettings(HttpContext context)
+    {
+        if (HttpMethods.IsGet(context.Request.Method))
+        {
+            await WriteJson(context, _layouts.GetSettings());
+            return;
+        }
+
+        if (!HttpMethods.IsPut(context.Request.Method))
+        {
+            await MethodNotAllowed(context);
+            return;
+        }
+
+        if (!Authorize(context))
+        {
+            await EmptyStatus(context, StatusCodes.Status403Forbidden);
+            return;
+        }
+
+        var body = await ReadJsonBody(context);
+        if (body.StatusCode is not null)
+        {
+            await EmptyStatus(context, body.StatusCode.Value);
+            return;
+        }
+
+        if (!LayoutJson.TryParseSettings(body.Content, out var update))
+        {
+            await EmptyStatus(context, StatusCodes.Status400BadRequest);
+            return;
+        }
+
+        var current = _layouts.GetSettings();
+        var next = new LayoutSettings(
+            update!.HasActivePresetId ? update.ActivePresetId : current.ActivePresetId,
+            update.HasTemperatureUnit ? update.TemperatureUnit : current.TemperatureUnit);
+        if (_layouts.UpdateSettings(next) != LayoutWriteResult.Success)
+        {
+            await EmptyStatus(context, StatusCodes.Status400BadRequest);
+            return;
+        }
+
+        await WriteJson(context, next);
     }
 
     private bool Authorize(HttpContext context)

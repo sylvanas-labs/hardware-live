@@ -97,6 +97,27 @@ a, button, input, [tabindex] { color: inherit; }
 }
 .app-header h1 { font-size: 19px; margin: 0; letter-spacing: .2px; }
 .header-actions { margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap; }
+.preset-select {
+  min-width: 150px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  color: var(--text);
+  border-radius: 8px;
+  padding: 6px 28px 6px 10px;
+  font: inherit;
+}
+.temperature-toggle { display: inline-flex; }
+.temperature-toggle .btn { border-radius: 0; padding-inline: 9px; }
+.temperature-toggle .btn:first-child { border-radius: 8px 0 0 8px; }
+.temperature-toggle .btn:last-child { border-radius: 0 8px 8px 0; margin-left: -1px; }
+.preset-menu {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin: -4px 0 10px;
+}
+.preset-menu[hidden] { display: none; }
 
 .pill {
   padding: 3px 10px;
@@ -123,6 +144,9 @@ a, button, input, [tabindex] { color: inherit; }
   color: var(--accent);
 }
 .btn:hover { border-color: var(--accent); }
+.btn:disabled { cursor: not-allowed; opacity: .45; border-color: var(--line); }
+.btn-primary { border-color: var(--accent); color: var(--accent); }
+.btn-danger { border-color: var(--critical); color: var(--critical); }
 
 .banner {
   padding: 10px 14px;
@@ -237,6 +261,7 @@ a, button, input, [tabindex] { color: inherit; }
    sensors) are the same height as tiles that show a WATCH/CRITICAL word (docs/SPEC.md
    step5-polish "Tiles consistency"). */
 .tile-status { font-size: 11px; line-height: 14px; margin-top: 2px; min-height: 16px; }
+.tile-peak { font-size: 10px; color: var(--muted); min-height: 14px; }
 .tile-spark { display: block; margin-top: 6px; width: 100%; height: 26px; }
 .tile-bar {
   height: 3px;
@@ -271,6 +296,7 @@ a, button, input, [tabindex] { color: inherit; }
 
 .gauge-wrap { display: flex; flex-direction: column; align-items: center; gap: 4px; }
 .gauge-value { font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.gauge-scale { font-size: 10px; color: var(--muted); }
 
 .analysis-header-row { display: flex; align-items: center; }
 .analysis-title { margin: 0; font-size: 16px; display: inline; }
@@ -357,6 +383,27 @@ dialog#sensor-picker {
   padding: 0;
 }
 dialog#sensor-picker::backdrop { background: rgba(0, 0, 0, .5); }
+dialog#preset-name-dialog,
+dialog#preset-delete-dialog {
+  width: min(420px, 92vw);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--panel);
+  color: var(--text);
+  padding: 0;
+}
+dialog#preset-name-dialog::backdrop,
+dialog#preset-delete-dialog::backdrop { background: rgba(0, 0, 0, .5); }
+.preset-dialog-form { padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+.preset-dialog-form h2, .preset-dialog-form p { margin: 0; }
+.preset-dialog-form input {
+  padding: 7px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+}
 .picker-form { padding: 16px; display: flex; flex-direction: column; gap: 8px; max-height: 80vh; overflow: auto; }
 .picker-form h2 { margin: 0 0 4px; font-size: 17px; }
 .picker-search-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }

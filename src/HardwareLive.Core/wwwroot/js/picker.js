@@ -8,7 +8,7 @@ import {
   matchesSensorSearch,
   hardwareKindFromType,
   sensorTypeCategory,
-  unitForSensorType,
+  displaySensorValue,
   formatValue,
   sanitizeDisplayText,
 } from './logic.js';
@@ -17,7 +17,7 @@ const HARDWARE_KINDS = ['CPU', 'GPU', 'Motherboard', 'Memory', 'Storage', 'Batte
 const SENSOR_TYPES = ['Temperature', 'Power', 'Clock', 'Load', 'Fan', 'Voltage', 'Other'];
 const WIDGET_KINDS = ['tile', 'chart', 'gauge'];
 
-export function createSensorPicker({ dialogEl, getMeta, getLatestValue, onAdd }) {
+export function createSensorPicker({ dialogEl, getMeta, getLatestValue, getTemperatureUnit = () => 'C', onAdd }) {
   const searchInput = dialogEl.querySelector('#picker-search');
   const roleOnlyBtn = dialogEl.querySelector('#picker-role-only');
   const hwChipsEl = dialogEl.querySelector('#picker-hardware-chips');
@@ -121,8 +121,7 @@ export function createSensorPicker({ dialogEl, getMeta, getLatestValue, onAdd })
       resultsEl.append(heading);
 
       for (const row of group.rows) {
-        const value = getLatestValue(row.id);
-        const unit = unitForSensorType(row.type);
+        const display = displaySensorValue(getLatestValue(row.id), row.type, getTemperatureUnit());
         const button = el('button', {
           className: 'picker-row',
           attrs: { type: 'button', role: 'option', 'aria-selected': 'false' },
@@ -136,7 +135,7 @@ export function createSensorPicker({ dialogEl, getMeta, getLatestValue, onAdd })
         }
         const valueNode = el('span', {
           className: 'muted',
-          text: formatValue(value, unit, unit === '°C' ? 1 : 0),
+          text: formatValue(display.value, display.unit, display.decimals),
         });
         button.append(nameNode, valueNode);
         if (row.role) {
@@ -169,7 +168,9 @@ export function createSensorPicker({ dialogEl, getMeta, getLatestValue, onAdd })
           return;
         }
 
-        onAdd({ kind, ref: { id: row.id, hw: row.hardwareName || row.hardwareId || 'unknown' } });
+        const ref = { id: row.id, hw: row.hardwareId || row.hardwareName || 'unknown' };
+        if (row.role) ref.role = row.role;
+        onAdd({ kind, ref });
         dialogEl.close();
       });
       kindChoicesEl.append(button);
@@ -208,5 +209,9 @@ export function createSensorPicker({ dialogEl, getMeta, getLatestValue, onAdd })
     searchInput.focus();
   }
 
-  return { open };
+  function refresh() {
+    if (dialogEl.open) renderResults();
+  }
+
+  return { open, refresh };
 }

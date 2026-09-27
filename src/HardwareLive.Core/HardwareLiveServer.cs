@@ -33,6 +33,10 @@ public sealed record HardwareLiveServerOptions
     /// <summary>Overrides the directory notes.json is read from. Defaults to
     /// <c>%LOCALAPPDATA%\HardwareLive</c>.</summary>
     public string? NotesDirectory { get; init; }
+
+    /// <summary>Overrides the directory layouts.json is stored in. Defaults to
+    /// <c>%LOCALAPPDATA%\HardwareLive</c>.</summary>
+    public string? LayoutsDirectory { get; init; }
 }
 
 public sealed class HardwareLiveServer : IAsyncDisposable
@@ -87,6 +91,7 @@ public sealed class HardwareLiveServer : IAsyncDisposable
 
         var createdAt = clock.GetUtcNow();
         var notesPath = ConfigPaths.ResolveNotesPath(options.NotesDirectory);
+        var layoutStore = new FileLayoutStore(ConfigPaths.ResolveLayoutsDirectory(options.LayoutsDirectory), clock);
 
         var tokenBytes = RandomNumberGenerator.GetBytes(32);
         var token = WebEncoders.Base64UrlEncode(tokenBytes);
@@ -116,7 +121,7 @@ public sealed class HardwareLiveServer : IAsyncDisposable
         var router = new RequestRouter(
             tokenBytes,
             token,
-            new InMemoryLayoutStore(),
+            layoutStore,
             telemetry,
             thresholdConfig,
             clock,
