@@ -20,6 +20,9 @@ internal sealed class RequestRouter
     private readonly ITelemetrySource _telemetry;
     private readonly UserThresholdConfig _thresholdConfig;
     private readonly ClassificationCache _classification = new();
+    private readonly TimeProvider _clock;
+    private readonly DateTimeOffset _createdAt;
+    private readonly string _notesPath;
 
     private static JsonSerializerOptions CreateJsonOptions()
     {
@@ -33,13 +36,19 @@ internal sealed class RequestRouter
         string tokenText,
         InMemoryLayoutStore layouts,
         ITelemetrySource telemetry,
-        UserThresholdConfig? thresholdConfig = null)
+        UserThresholdConfig? thresholdConfig = null,
+        TimeProvider? clock = null,
+        DateTimeOffset? createdAt = null,
+        string? notesPath = null)
     {
         _token = token;
         _tokenText = tokenText;
         _layouts = layouts;
         _telemetry = telemetry;
         _thresholdConfig = thresholdConfig ?? UserThresholdConfig.Empty;
+        _clock = clock ?? TimeProvider.System;
+        _createdAt = createdAt ?? _clock.GetUtcNow();
+        _notesPath = notesPath ?? ConfigPaths.ResolveNotesPath();
     }
 
     public async Task HandleAsync(HttpContext context)
@@ -60,6 +69,18 @@ internal sealed class RequestRouter
         if (path is "/api/snapshot" or "/api/meta" or "/api/health")
         {
             await HandleTelemetryRead(context, path);
+            return;
+        }
+
+        if (path == "/api/notes")
+        {
+            await HandleNotes(context);
+            return;
+        }
+
+        if (StaticFiles.TryGetResource(path, out _, out _))
+        {
+            await HandleStaticFile(context, path);
             return;
         }
 
@@ -87,6 +108,17 @@ internal sealed class RequestRouter
         await NotFound(context);
     }
 
+    // Every directive the CSP needs (docs/SPEC.md step5): no inline script/style, no
+    // cross-origin fetch/img/frame targets, no forms. Identical on every response that could
+    // ever render HTML (today, only "/").
+    private const string ContentSecurityPolicy =
+        "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; " +
+        "connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'";
+
+    private const string TokenPlaceholder = "__HL_TOKEN__";
+
+    private static readonly Lazy<string> IndexHtmlTemplate = new(() => ReadEmbeddedText(StaticFiles.IndexHtmlResourceName));
+
     private async Task HandleRoot(HttpContext context)
     {
         if (!HttpMethods.IsGet(context.Request.Method))
@@ -95,10 +127,79 @@ internal sealed class RequestRouter
             return;
         }
 
-        context.Response.ContentType = "text/html; charset=utf-8";
         var encodedToken = HtmlEncoder.Default.Encode(_tokenText);
-        await context.Response.WriteAsync(
-            $"<!doctype html><html><head><meta charset=\"utf-8\"><meta name=\"hl-token\" content=\"{encodedToken}\"><title>Hardware Live</title></head><body><h1>Hardware Live</h1></body></html>");
+        var html = IndexHtmlTemplate.Value.Replace(TokenPlaceholder, encodedToken, StringComparison.Ordinal);
+
+        context.Response.ContentType = "text/html; charset=utf-8";
+        ApplyStaticHeaders(context);
+        context.Response.Headers["Content-Security-Policy"] = ContentSecurityPolicy;
+        await context.Response.WriteAsync(html);
+    }
+
+    private async Task HandleStaticFile(HttpContext context, string path)
+    {
+        if (!HttpMethods.IsGet(context.Request.Method))
+        {
+            await MethodNotAllowed(context);
+            return;
+        }
+
+        if (!StaticFiles.TryGetResource(path, out var resourceName, out var contentType))
+        {
+            await NotFound(context);
+            return;
+        }
+
+        await using var stream = typeof(HardwareLiveServer).Assembly.GetManifestResourceStream(resourceName);
+        if (stream is null)
+        {
+            await NotFound(context);
+            return;
+        }
+
+        context.Response.ContentType = contentType;
+        ApplyStaticHeaders(context);
+        await stream.CopyToAsync(context.Response.Body);
+    }
+
+    private static void ApplyStaticHeaders(HttpContext context)
+    {
+        context.Response.Headers["X-Content-Type-Options"] = "nosniff";
+        context.Response.Headers["Referrer-Policy"] = "no-referrer";
+        context.Response.Headers.CacheControl = "no-store";
+    }
+
+    private static string ReadEmbeddedText(string resourceName)
+    {
+        using var stream = typeof(HardwareLiveServer).Assembly.GetManifestResourceStream(resourceName)
+            ?? throw new InvalidOperationException($"Missing embedded resource: {resourceName}");
+        using var reader = new StreamReader(stream, Encoding.UTF8);
+        return reader.ReadToEnd();
+    }
+
+    private async Task HandleNotes(HttpContext context)
+    {
+        if (!HttpMethods.IsGet(context.Request.Method))
+        {
+            await MethodNotAllowed(context);
+            return;
+        }
+
+        var notes = NotesReader.Read(_notesPath);
+        if (notes is null)
+        {
+            await EmptyStatus(context, StatusCodes.Status204NoContent);
+            return;
+        }
+
+        var ageMinutes = (_clock.GetUtcNow() - DateTimeOffset.FromUnixTimeSeconds(notes.Ts)).TotalMinutes;
+        await WriteJson(context, new
+        {
+            at = notes.At,
+            source = notes.Source,
+            lines = notes.Lines,
+            ageMinutes,
+        });
     }
 
     private async Task HandleTelemetryRead(HttpContext context, string path)
@@ -144,6 +245,8 @@ internal sealed class RequestRouter
             return;
         }
 
+        var uptimeSeconds = Math.Max(0, (_clock.GetUtcNow() - _createdAt).TotalSeconds);
+
         string reason;
         if (_telemetry.HasSamplerIdentityMismatch)
         {
@@ -151,7 +254,12 @@ internal sealed class RequestRouter
         }
         else if (_telemetry.LatestFrame is null)
         {
-            reason = "sampler not running";
+            // LHM's first hardware scan can take 10+ seconds (docs/SPEC.md step5 feature 0):
+            // no frame yet within the startup window just means "still starting", not "not
+            // running". Once the window elapses with still nothing, it really isn't running.
+            reason = uptimeSeconds < HardwareLiveServer.StartupWindow.TotalSeconds
+                ? "starting"
+                : "sampler not running";
         }
         else
         {
@@ -179,12 +287,13 @@ internal sealed class RequestRouter
                     phase = result.Phase,
                     concerns = result.Concerns,
                     trends = result.Trends,
+                    uptimeSeconds,
                 });
                 return;
             }
         }
 
-        await WriteJson(context, new { status = "UNKNOWN", reason });
+        await WriteJson(context, new { status = "UNKNOWN", reason, uptimeSeconds });
     }
 
     private async Task HandleSnapshot(HttpContext context)

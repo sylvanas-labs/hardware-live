@@ -19,4 +19,19 @@
     <EmbeddedResource Include="Profiles\profiles.json" LogicalName="HardwareLive.Core.Profiles.profiles.json" />
   </ItemGroup>
 
+  <!-- The dashboard UI (docs/SPEC.md step5): every file the app can ever serve is embedded
+       explicitly (no wildcard) so StaticFiles.cs's allow-list and this manifest can never
+       silently drift apart, and RequestRouter never touches the filesystem at request time. -->
+  <ItemGroup>
+    <EmbeddedResource Include="wwwroot\index.html" LogicalName="HardwareLive.Core.wwwroot.index.html" />
+    <EmbeddedResource Include="wwwroot\app.css" LogicalName="HardwareLive.Core.wwwroot.app.css" />
+    <EmbeddedResource Include="wwwroot\js\logic.js" LogicalName="HardwareLive.Core.wwwroot.js.logic.js" />
+    <EmbeddedResource Include="wwwroot\js\dom.js" LogicalName="HardwareLive.Core.wwwroot.js.dom.js" />
+    <EmbeddedResource Include="wwwroot\js\api.js" LogicalName="HardwareLive.Core.wwwroot.js.api.js" />
+    <EmbeddedResource Include="wwwroot\js\widgets.js" LogicalName="HardwareLive.Core.wwwroot.js.widgets.js" />
+    <EmbeddedResource Include="wwwroot\js\dragdrop.js" LogicalName="HardwareLive.Core.wwwroot.js.dragdrop.js" />
+    <EmbeddedResource Include="wwwroot\js\picker.js" LogicalName="HardwareLive.Core.wwwroot.js.picker.js" />
+    <EmbeddedResource Include="wwwroot\js\app.js" LogicalName="HardwareLive.Core.wwwroot.js.app.js" />
+  </ItemGroup>
+
 </Project>

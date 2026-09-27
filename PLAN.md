@@ -3,13 +3,12 @@
 Full spec: [docs/SPEC.md](docs/SPEC.md) (APPROVED r4).
 
 ## Now
-- [ ] Next: Soon step 1 (widget grid UI: drag reorder, sensor picker + filters)
+- [ ] Next: Soon step 1 (presets: Overview/CPU/GPU/3D Gaming/Thermals/Cooling/Storage + custom save/export/import)
 
 ## Soon (in order)
-1. Widget grid UI: drag reorder (edit mode, keyboard), sensor picker + filters
-2. Presets (Overview/CPU/GPU/3D Gaming/Thermals/Cooling/Storage) + custom save/export/import in `layouts.json`
-3. FPS via PresentMon v2.6.0 (unelevated, Performance Log Users opt-in) + 3D Gaming preset wiring
-4. `install.ps1`/`uninstall.ps1`, with these requirements:
+1. Presets (Overview/CPU/GPU/3D Gaming/Thermals/Cooling/Storage) + custom save/export/import in `layouts.json`
+2. FPS via PresentMon v2.6.0 (unelevated, Performance Log Users opt-in) + 3D Gaming preset wiring
+3. `install.ps1`/`uninstall.ps1`, with these requirements:
    - Install to `Program Files\HardwareLive\{app,sampler}\`, kept as separate folders.
    - `HL-Sampler` task runs as **SYSTEM** with `--user-sid`; `HL-App` task runs unelevated.
    - Launcher opens `http://127.0.0.1:<port>`, not `localhost` (the server binds IPv4 loopback only).
@@ -23,6 +22,14 @@ Full spec: [docs/SPEC.md](docs/SPEC.md) (APPROVED r4).
 - Light theme polish, CSV export of a session, alert sounds
 
 ## Done
+- 2026-09-27 Widget grid UI complete (step 5): dashboard served as embedded static assets
+  (strict CSP, X-Content-Type-Options, no-store, explicit allow-list, no filesystem reads at
+  request time), tile/chart/gauge/analysis/notes widgets, pointer + keyboard drag reorder in an
+  explicit edit mode, sensor picker with search/filters/grouping, quick filter bar
+  (localStorage), default layout, polling with backoff + visibility pause, startup-window
+  health state (`starting` vs `sampler not running`, `uptimeSeconds`), `GET /api/notes` +
+  `docs/NOTES-HOOK.md`, chart series/max layout-schema extension; 117 new C# tests +
+  `tests/ui/logic.test.mjs` (17 tests, plain `node --test`)
 - 2026-09-27 Threshold profiles + analysis engine complete: user-override -> device-limit ->
   vendor-profile -> generic-community threshold resolution (`Core/Profiles/`), the
   rule-based health analyzer (status/concerns/trends/phase/headline, `Core/Analysis/`), and

@@ -6,7 +6,10 @@ public sealed class RunningServerFixture : IAsyncLifetime
 
     public async Task InitializeAsync()
     {
-        Host = await ServerTestHost.StartAsync();
+        // Never the real %LOCALAPPDATA%\HardwareLive: tests must not depend on (or be
+        // affected by) whatever notes.json a real machine happens to have.
+        var notesDirectory = Path.Combine(Path.GetTempPath(), $"hl-tests-notes-{Guid.NewGuid():N}");
+        Host = await ServerTestHost.StartAsync(notesDirectory: notesDirectory);
     }
 
     public async Task DisposeAsync()

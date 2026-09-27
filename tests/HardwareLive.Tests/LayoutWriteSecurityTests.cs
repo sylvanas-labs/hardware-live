@@ -49,6 +49,23 @@ public sealed class LayoutWriteSecurityTests(RunningServerFixture fixture)
         yield return ["unexpected layout property", """{"id":"valid","name":"Name","widgets":[],"extra":true}"""];
         yield return ["unexpected widget property", """{"id":"valid","name":"Name","widgets":[{"kind":"tile","size":"S","ref":{"role":"cpu.temp"},"extra":true}]}"""];
         yield return ["unexpected ref property", """{"id":"valid","name":"Name","widgets":[{"kind":"tile","size":"S","ref":{"role":"cpu.temp","extra":true}}]}"""];
+        yield return ["chart with both ref and series", """{"id":"valid","name":"Name","widgets":[{"kind":"chart","size":"L","ref":{"role":"cpu.temp"},"series":[{"role":"gpu.temp"}]}]}"""];
+        yield return ["chart with neither ref nor series", """{"id":"valid","name":"Name","widgets":[{"kind":"chart","size":"L"}]}"""];
+        yield return ["chart series empty", """{"id":"valid","name":"Name","widgets":[{"kind":"chart","size":"L","series":[]}]}"""];
+        yield return ["chart series over twelve", ChartWithSeriesCount(13)];
+        yield return ["chart series with invalid reference", """{"id":"valid","name":"Name","widgets":[{"kind":"chart","size":"L","series":[{}]}]}"""];
+        yield return ["chart max not a number", """{"id":"valid","name":"Name","widgets":[{"kind":"chart","size":"L","series":[{"role":"cpu.temp"}],"max":"100"}]}"""];
+        yield return ["chart max zero", """{"id":"valid","name":"Name","widgets":[{"kind":"chart","size":"L","series":[{"role":"cpu.temp"}],"max":0}]}"""];
+        yield return ["chart max negative", """{"id":"valid","name":"Name","widgets":[{"kind":"chart","size":"L","series":[{"role":"cpu.temp"}],"max":-1}]}"""];
+        yield return ["non-chart with series", """{"id":"valid","name":"Name","widgets":[{"kind":"tile","size":"S","ref":{"role":"cpu.temp"},"series":[{"role":"gpu.temp"}]}]}"""];
+        yield return ["non-chart with max", """{"id":"valid","name":"Name","widgets":[{"kind":"tile","size":"S","ref":{"role":"cpu.temp"},"max":100}]}"""];
+    }
+
+    private static string ChartWithSeriesCount(int count)
+    {
+        var series = Enumerable.Range(0, count).Select(i => new { role = $"role.{i}" });
+        var widget = new { kind = "chart", size = "L", series };
+        return JsonSerializer.Serialize(new { id = "valid", name = "Name", widgets = new[] { widget } });
     }
 
     public static IEnumerable<object[]> InvalidImportBodies()
@@ -111,6 +128,7 @@ public sealed class LayoutWriteSecurityTests(RunningServerFixture fixture)
               "widgets": [
                 { "kind": "tile", "size": "S", "ref": { "role": "cpu.temp" } },
                 { "kind": "chart", "size": "M", "ref": { "id": "/cpu/0", "hw": "CPU" } },
+                { "kind": "chart", "size": "L", "series": [ { "role": "cpu.load.total" }, { "role": "gpu.load.core" } ], "max": 100 },
                 { "kind": "gauge", "size": "L", "ref": { "id": "/gpu/0", "hw": "GPU", "role": "gpu.temp" } },
                 { "kind": "analysis", "size": "M", "ref": { "role": "analysis.health" } },
                 { "kind": "notes", "size": "S", "ref": { "role": "notes" } }

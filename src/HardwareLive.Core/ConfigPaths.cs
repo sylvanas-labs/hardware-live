@@ -21,4 +21,15 @@ public static class ConfigPaths
 
         return Path.Combine(appBaseDirectory, "config.json");
     }
+
+    /// <summary>Resolves the notes.json path (docs/SPEC.md Component 7): normally
+    /// <c>%LOCALAPPDATA%\HardwareLive\notes.json</c>, but the containing directory is
+    /// injectable so tests never touch the real per-user profile.</summary>
+    public static string ResolveNotesPath(string? notesDirectory = null)
+    {
+        var directory = notesDirectory ?? Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "HardwareLive");
+        return Path.Combine(directory, "notes.json");
+    }
 }

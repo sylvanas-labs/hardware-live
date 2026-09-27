@@ -16,7 +16,11 @@ internal static class LayoutJson
         "kind",
         "size",
         "ref",
+        "series",
+        "max",
     };
+
+    private const int MaxChartSeries = 12;
 
     private static readonly HashSet<string> ReferenceProperties = new(StringComparer.Ordinal)
     {
@@ -135,14 +139,76 @@ internal static class LayoutJson
             !TryGetString(element, "kind", out var kind) ||
             !WidgetKinds.Contains(kind) ||
             !TryGetString(element, "size", out var size) ||
-            !WidgetSizes.Contains(size) ||
-            !element.TryGetProperty("ref", out var referenceElement) ||
-            !TryParseReference(referenceElement, out var reference))
+            !WidgetSizes.Contains(size))
         {
             return false;
         }
 
-        widget = new LayoutWidget(kind, size, reference!);
+        var hasRef = element.TryGetProperty("ref", out var referenceElement);
+        var hasSeries = element.TryGetProperty("series", out var seriesElement);
+        var hasMax = element.TryGetProperty("max", out var maxElement);
+
+        // Only a chart may use series/max, and only a chart may omit ref (in favor of series).
+        if (kind != "chart")
+        {
+            if (hasSeries || hasMax || !hasRef || !TryParseReference(referenceElement, out var plainReference))
+            {
+                return false;
+            }
+
+            widget = new LayoutWidget(kind, size, plainReference);
+            return true;
+        }
+
+        // A chart carries exactly one of ref (single series) or series (multi-series).
+        if (hasRef == hasSeries)
+        {
+            return false;
+        }
+
+        double? max = null;
+        if (hasMax)
+        {
+            if (maxElement.ValueKind != JsonValueKind.Number ||
+                !maxElement.TryGetDouble(out var maxValue) ||
+                !double.IsFinite(maxValue) ||
+                maxValue <= 0)
+            {
+                return false;
+            }
+
+            max = maxValue;
+        }
+
+        if (hasRef)
+        {
+            if (!TryParseReference(referenceElement, out var reference))
+            {
+                return false;
+            }
+
+            widget = new LayoutWidget(kind, size, reference, Series: null, Max: max);
+            return true;
+        }
+
+        if (seriesElement.ValueKind != JsonValueKind.Array ||
+            seriesElement.GetArrayLength() is 0 or > MaxChartSeries)
+        {
+            return false;
+        }
+
+        var series = new List<LayoutReference>(seriesElement.GetArrayLength());
+        foreach (var seriesItem in seriesElement.EnumerateArray())
+        {
+            if (!TryParseReference(seriesItem, out var seriesReference))
+            {
+                return false;
+            }
+
+            series.Add(seriesReference!);
+        }
+
+        widget = new LayoutWidget(kind, size, Ref: null, Series: series, Max: max);
         return true;
     }
 

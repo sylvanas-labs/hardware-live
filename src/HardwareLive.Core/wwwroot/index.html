@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="hl-token" content="__HL_TOKEN__">
+<title>Hardware Live</title>
+<link rel="stylesheet" href="/app.css">
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to main content</a>
+<header class="app-header">
+  <h1>Hardware Live</h1>
+  <span id="connection-pill" class="pill" role="status" aria-live="polite">connecting&hellip;</span>
+  <div class="header-actions">
+    <button type="button" id="edit-toggle" class="btn" aria-pressed="false">Edit layout</button>
+    <button type="button" id="add-widget-btn" class="btn" hidden>Add widget&hellip;</button>
+  </div>
+</header>
+
+<div id="connection-banner" class="banner" role="alert" hidden></div>
+<div id="unavailable-banner" class="banner banner-info" role="status" hidden></div>
+
+<nav id="quick-filter-bar" class="quick-filter-bar" aria-label="Quick filters"></nav>
+
+<main id="main">
+  <div id="widget-grid" class="widget-grid" role="list" aria-label="Hardware widgets"></div>
+  <p id="empty-state" class="empty-state" hidden>No widgets to show. Turn on Edit layout to add one.</p>
+</main>
+
+<div id="reorder-live" class="sr-only" role="status" aria-live="assertive"></div>
+
+<dialog id="sensor-picker" aria-labelledby="sensor-picker-title">
+  <form method="dialog" class="picker-form">
+    <h2 id="sensor-picker-title">Add a widget</h2>
+    <div class="picker-search-row">
+      <label class="sr-only" for="picker-search">Search sensors</label>
+      <input id="picker-search" type="search" placeholder="Search by name, hardware, role or id">
+      <button type="button" id="picker-role-only" class="btn btn-toggle" aria-pressed="false">Only sensors with a role</button>
+    </div>
+    <div id="picker-hardware-chips" class="chip-row" role="group" aria-label="Filter by hardware kind"></div>
+    <div id="picker-type-chips" class="chip-row" role="group" aria-label="Filter by sensor type"></div>
+    <div id="picker-results" class="picker-results" role="listbox" aria-label="Matching sensors"></div>
+    <div id="picker-kind-step" class="picker-kind-step" hidden>
+      <p id="picker-kind-label">Add as:</p>
+      <div id="picker-kind-choices" class="chip-row" role="group" aria-labelledby="picker-kind-label"></div>
+    </div>
+    <div class="picker-actions">
+      <button type="button" id="picker-cancel" class="btn">Cancel</button>
+    </div>
+  </form>
+</dialog>
+
+<script type="module" src="/js/app.js"></script>
+</body>
+</html>

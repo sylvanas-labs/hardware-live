@@ -46,12 +46,43 @@ public sealed class StubResponseTests(RunningServerFixture fixture)
     }
 
     [Fact]
-    public async Task HealthExplainsThatSamplerIsNotRunning()
+    public async Task HealthReportsStartingWithinTheStartupWindow()
     {
-        using var response = await fixture.Host.Client.GetAsync("/api/health");
+        // Uses its own host (not the shared fixture) so the clock -- and therefore uptime --
+        // is deterministic rather than however long earlier tests in this collection happened
+        // to take.
+        var clock = new ManualTimeProvider(new DateTimeOffset(2026, 9, 27, 0, 0, 0, TimeSpan.Zero));
+        await using var host = await ServerTestHost.StartAsync(clock: clock);
+
+        using var response = await host.Client.GetAsync("/api/health");
+        using var json = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
+
+        Assert.Equal("UNKNOWN", json.RootElement.GetProperty("status").GetString());
+        Assert.Equal("starting", json.RootElement.GetProperty("reason").GetString());
+        Assert.Equal(0, json.RootElement.GetProperty("uptimeSeconds").GetDouble());
+    }
+
+    [Fact]
+    public async Task HealthExplainsThatSamplerIsNotRunningAfterTheStartupWindow()
+    {
+        var clock = new ManualTimeProvider(new DateTimeOffset(2026, 9, 27, 0, 0, 0, TimeSpan.Zero));
+        await using var host = await ServerTestHost.StartAsync(clock: clock);
+        clock.Advance(TimeSpan.FromSeconds(31));
+
+        using var response = await host.Client.GetAsync("/api/health");
         using var json = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
 
         Assert.Equal("UNKNOWN", json.RootElement.GetProperty("status").GetString());
         Assert.Equal("sampler not running", json.RootElement.GetProperty("reason").GetString());
+        Assert.Equal(31, json.RootElement.GetProperty("uptimeSeconds").GetDouble());
+    }
+
+    private sealed class ManualTimeProvider(DateTimeOffset now) : TimeProvider
+    {
+        private DateTimeOffset _now = now;
+
+        public override DateTimeOffset GetUtcNow() => _now;
+
+        public void Advance(TimeSpan duration) => _now += duration;
     }
 }

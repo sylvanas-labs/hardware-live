@@ -14,10 +14,36 @@ using Microsoft.Extensions.Logging;
 
 namespace HardwareLive.Core;
 
+/// <summary>Construction options for <see cref="HardwareLiveServer.Create(HardwareLiveServerOptions)"/>.
+/// Every field defaults to production behavior; tests override <see cref="Clock"/> and
+/// <see cref="NotesDirectory"/> so startup-window and notes-hook tests never depend on wall
+/// clock time or the real per-user profile.</summary>
+public sealed record HardwareLiveServerOptions
+{
+    public int Port { get; init; } = HardwareLiveServer.DefaultPort;
+
+    public ITelemetrySource? Telemetry { get; init; }
+
+    public UserThresholdConfig? ThresholdConfig { get; init; }
+
+    /// <summary>Clock used for <c>uptimeSeconds</c> and the startup-window check
+    /// (docs/SPEC.md step5 feature 0). Defaults to <see cref="TimeProvider.System"/>.</summary>
+    public TimeProvider? Clock { get; init; }
+
+    /// <summary>Overrides the directory notes.json is read from. Defaults to
+    /// <c>%LOCALAPPDATA%\HardwareLive</c>.</summary>
+    public string? NotesDirectory { get; init; }
+}
+
 public sealed class HardwareLiveServer : IAsyncDisposable
 {
     public const int DefaultPort = 8790;
     public const int MaximumRequestBodySize = 256 * 1024;
+
+    /// <summary>How long after creation with no sampler frame ever received that
+    /// <c>/api/health</c> still reports "starting" instead of "sampler not running"
+    /// (docs/SPEC.md step5 feature 0).</summary>
+    public static readonly TimeSpan StartupWindow = TimeSpan.FromSeconds(30);
 
     private readonly WebApplication _application;
     private bool _started;
@@ -35,22 +61,32 @@ public sealed class HardwareLiveServer : IAsyncDisposable
     public IReadOnlyList<Uri> BoundAddresses { get; private set; } = [];
 
     public static HardwareLiveServer Create(int port = DefaultPort) =>
-        Create(port, new TelemetryStore());
+        Create(new HardwareLiveServerOptions { Port = port, Telemetry = new TelemetryStore() });
 
     public static HardwareLiveServer Create(ITelemetrySource telemetry, int port = DefaultPort) =>
-        Create(port, telemetry);
+        Create(new HardwareLiveServerOptions { Port = port, Telemetry = telemetry });
 
     public static HardwareLiveServer Create(int port, ITelemetrySource telemetry) =>
-        Create(port, telemetry, UserThresholdConfig.Empty);
+        Create(new HardwareLiveServerOptions { Port = port, Telemetry = telemetry });
 
-    public static HardwareLiveServer Create(int port, ITelemetrySource telemetry, UserThresholdConfig thresholdConfig)
+    public static HardwareLiveServer Create(int port, ITelemetrySource telemetry, UserThresholdConfig thresholdConfig) =>
+        Create(new HardwareLiveServerOptions { Port = port, Telemetry = telemetry, ThresholdConfig = thresholdConfig });
+
+    public static HardwareLiveServer Create(HardwareLiveServerOptions options)
     {
+        ArgumentNullException.ThrowIfNull(options);
+        var port = options.Port;
+        var telemetry = options.Telemetry ?? new TelemetryStore();
+        var thresholdConfig = options.ThresholdConfig ?? UserThresholdConfig.Empty;
+        var clock = options.Clock ?? TimeProvider.System;
+
         if (port is < 0 or > ushort.MaxValue)
         {
-            throw new ArgumentOutOfRangeException(nameof(port), "Port must be between 0 and 65535.");
+            throw new ArgumentOutOfRangeException(nameof(options), "Port must be between 0 and 65535.");
         }
 
-        ArgumentNullException.ThrowIfNull(telemetry);
+        var createdAt = clock.GetUtcNow();
+        var notesPath = ConfigPaths.ResolveNotesPath(options.NotesDirectory);
 
         var tokenBytes = RandomNumberGenerator.GetBytes(32);
         var token = WebEncoders.Base64UrlEncode(tokenBytes);
@@ -65,11 +101,11 @@ public sealed class HardwareLiveServer : IAsyncDisposable
         builder.Configuration.Sources.Clear();
         builder.Configuration.AddInMemoryCollection();
         builder.WebHost.UseUrls([]);
-        builder.WebHost.ConfigureKestrel(options =>
+        builder.WebHost.ConfigureKestrel(kestrel =>
         {
-            options.AddServerHeader = false;
-            options.Limits.MaxRequestBodySize = MaximumRequestBodySize;
-            options.Listen(IPAddress.Loopback, port);
+            kestrel.AddServerHeader = false;
+            kestrel.Limits.MaxRequestBodySize = MaximumRequestBodySize;
+            kestrel.Listen(IPAddress.Loopback, port);
         });
         builder.Logging.ClearProviders();
 
@@ -77,7 +113,15 @@ public sealed class HardwareLiveServer : IAsyncDisposable
 
         // This must remain the first middleware in the pipeline.
         application.Use(HostHeaderGuard);
-        var router = new RequestRouter(tokenBytes, token, new InMemoryLayoutStore(), telemetry, thresholdConfig);
+        var router = new RequestRouter(
+            tokenBytes,
+            token,
+            new InMemoryLayoutStore(),
+            telemetry,
+            thresholdConfig,
+            clock,
+            createdAt,
+            notesPath);
         application.Run(router.HandleAsync);
 
         return new HardwareLiveServer(application, token);
