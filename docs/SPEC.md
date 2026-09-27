@@ -147,10 +147,31 @@ source. PawnIO (GPLv2+) is not bundled.
    - `uninstall.ps1` removes both tasks and the config, and handles the Performance Log
      Users rollback (component 9).
 9. **FPS capture (r4, opt-in).** Uses the PresentMon console app, MIT, **pinned v2.6.0**.
-   - The exe is bundled with its license, and its SHA-256 is verified at build time. It is
-     never downloaded at runtime.
+   - Asset `PresentMon-2.6.0-x64.exe` (980,320 bytes), SHA-256
+     `b2a706bc6ad475749e3b7e3409263aa1e6906d45bdcf993f6dbc0f660188f1af`. That matches
+     GitHub's asset digest, and the exe is Authenticode-signed by Intel Corporation (both
+     verified 2026-09-27).
+     - The exe is bundled with its license, and its SHA-256 is verified at build time.
+     - It is never downloaded at runtime.
+     - It is **not committed to git**: the build or install step fetches the pinned release
+       asset and fails on a hash mismatch.
    - It's spawned by the **unelevated** `hardware-live.exe` with `--output_stdout --no_csv
-     --no_console_stats --v2_metrics --session_name HardwareLive --stop_existing_session`.
+     --no_console_stats --v2_metrics --qpc_time_ms --session_name HardwareLive
+     --stop_existing_session`.
+   - Verified against the real binary:
+     - stdout is plain ASCII CSV with LF line endings, so read it as UTF-8. (PowerShell 7's
+       `Start-Process -RedirectStandardOutput` turns it into UTF-16. Don't test through that.)
+     - Metric cells can be `NA`, which must parse as "no value".
+     - v2 columns: `Application,ProcessID,SwapChainAddress,PresentRuntime,SyncInterval,
+       PresentFlags,AllowsTearing,PresentMode,CPUStartQPCTime,FrameTime,CPUBusy,CPUWait,
+       GPULatency,GPUTime,GPUBusy,GPUWait,DisplayLatency,DisplayedTime,AnimationError,
+       AnimationTime,MsFlipDelay,AllInputToPhotonLatency,ClickToPhotonLatency`.
+     - **There is no `MsBetweenPresents` column in v2 mode.**
+     - Parse by header name, never by column index.
+   - Real fixture: `tests/fixtures/presentmon/presentmon-2.6.0-v2-raw-stdout.csv`. It holds
+     windowed Edge and Terminal frames in "Hardware Composed: Independent Flip", which is
+     live proof that independent flip isn't a game signal. The target logic must yield "–"
+     for every app in it.
    - Needs no admin, only membership in the Windows **Performance Log Users** group.
      `install.ps1` offers to add the user, with an explicit consent prompt that explains it
      lets the user start ETW trace sessions. FPS stays off if they decline.
@@ -184,8 +205,11 @@ source. PawnIO (GPLv2+) is not bundled.
      misattribution is visible, and the user can deny it with one click.
    - Derived values (exact formulas, r4.1). Frames are bucketed by `CPUStartQPCTime`
      (`--qpc_time_ms`) into aligned, half-open 1 s buckets `[k, k+1000) ms`. `ft` is each
-     frame's `MsBetweenPresents`. Every row PresentMon emits for the target counts,
-     including dropped frames.
+     frame's `FrameTime`. PresentMon's v2 docs (README-ConsoleApplication.md @ v2.3.0, linked
+     from 2.6.0) define it as "how long it took from the start of this frame until the CPU
+     started working on the next frame". In real data `FrameTime` = `CPUBusy` + `CPUWait`. Every row PresentMon emits for the target counts,
+     including dropped frames (`DisplayedTime` = `NA`). Rows whose `FrameTime` is `NA` or
+     <= 0 are skipped.
      - `fps.avg[k]` = 1000 · n_k / Σ ft over bucket k (no value when n_k < 2)
      - `fps.low1` = 1000 / P99(ft) over the frames in the last 60 buckets, using the
        nearest-rank percentile (no value when there are < 100 frames)

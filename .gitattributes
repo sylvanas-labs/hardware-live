@@ -1,0 +1,3 @@
+# Recorded fixtures must stay byte-exact: they are real captured output (sampler JSON,
+# PresentMon stdout with LF line endings) and parsers are tested against those exact bytes.
+tests/fixtures/** -text
