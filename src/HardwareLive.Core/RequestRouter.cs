@@ -3,7 +3,9 @@ using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using HardwareLive.Core.Analysis;
 using HardwareLive.Core.Classification;
+using HardwareLive.Core.Profiles;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.WebUtilities;
 
@@ -16,6 +18,7 @@ internal sealed class RequestRouter
     private readonly string _tokenText;
     private readonly InMemoryLayoutStore _layouts;
     private readonly ITelemetrySource _telemetry;
+    private readonly UserThresholdConfig _thresholdConfig;
     private readonly ClassificationCache _classification = new();
 
     private static JsonSerializerOptions CreateJsonOptions()
@@ -29,12 +32,14 @@ internal sealed class RequestRouter
         byte[] token,
         string tokenText,
         InMemoryLayoutStore layouts,
-        ITelemetrySource telemetry)
+        ITelemetrySource telemetry,
+        UserThresholdConfig? thresholdConfig = null)
     {
         _token = token;
         _tokenText = tokenText;
         _layouts = layouts;
         _telemetry = telemetry;
+        _thresholdConfig = thresholdConfig ?? UserThresholdConfig.Empty;
     }
 
     public async Task HandleAsync(HttpContext context)
@@ -114,6 +119,7 @@ internal sealed class RequestRouter
         {
             var frame = _telemetry.LatestFrame;
             var classification = _classification.Classify(frame);
+            var thresholds = ThresholdResolver.Resolve(frame, classification, _thresholdConfig);
             await WriteJson(context, new
             {
                 hardware = frame?.Hardware ?? [],
@@ -132,6 +138,8 @@ internal sealed class RequestRouter
                 primaryCpuId = classification.PrimaryCpuId,
                 primaryGpuId = classification.PrimaryGpuId,
                 missingMandatory = classification.MissingMandatory,
+                thresholds = thresholds.Thresholds,
+                profile = new { cpu = thresholds.CpuProfile, gpu = thresholds.GpuProfile },
             });
             return;
         }
@@ -145,16 +153,35 @@ internal sealed class RequestRouter
         {
             reason = "sampler not running";
         }
-        else if (_telemetry.IsStale)
-        {
-            reason = "sampler stale";
-        }
         else
         {
-            var missing = _classification.Classify(_telemetry.LatestFrame).MissingMandatory;
-            reason = missing.Count > 0
-                ? $"unmapped: {string.Join(", ", missing)}"
-                : "analysis not implemented";
+            var frame = _telemetry.LatestFrame;
+            var classification = _classification.Classify(frame);
+            if (_telemetry.IsStale)
+            {
+                reason = "sampler stale";
+            }
+            else if (classification.MissingMandatory.Count > 0)
+            {
+                reason = $"unmapped: {string.Join(", ", classification.MissingMandatory)}";
+            }
+            else
+            {
+                var sensorIds = classification.Roles.Select(r => r.SensorId).Distinct(StringComparer.Ordinal).ToArray();
+                var snapshot = _telemetry.GetSnapshot(sensorIds);
+                var thresholds = ThresholdResolver.Resolve(frame, classification, _thresholdConfig);
+                var result = HealthAnalyzer.Analyze(snapshot, classification, thresholds, _thresholdConfig.Invalid);
+                await WriteJson(context, new
+                {
+                    status = result.Status,
+                    reason = result.Reason,
+                    headline = result.Headline,
+                    phase = result.Phase,
+                    concerns = result.Concerns,
+                    trends = result.Trends,
+                });
+                return;
+            }
         }
 
         await WriteJson(context, new { status = "UNKNOWN", reason });

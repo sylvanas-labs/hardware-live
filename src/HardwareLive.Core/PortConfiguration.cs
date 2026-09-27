@@ -29,33 +29,34 @@ public static class PortConfiguration
         return port;
     }
 
+    // config.json lives in the user-editable %LOCALAPPDATA%, so a typo there must never stop
+    // the app from starting: any problem falls back to the default port. (The thresholds
+    // section reports an invalid file as a health INFO concern.) An invalid --port on the
+    // command line still throws, because that is a developer's explicit input.
     private static int? ReadConfigPort(string configPath)
     {
-        if (!File.Exists(configPath))
-        {
-            return null;
-        }
-
         try
         {
-            using var document = JsonDocument.Parse(File.ReadAllBytes(configPath));
-            if (document.RootElement.ValueKind != JsonValueKind.Object ||
-                !document.RootElement.TryGetProperty("port", out var portElement))
+            if (!File.Exists(configPath) || new FileInfo(configPath).Length > 64 * 1024)
             {
                 return null;
             }
 
-            if (!portElement.TryGetInt32(out var port))
+            using var document = JsonDocument.Parse(File.ReadAllBytes(configPath));
+            if (document.RootElement.ValueKind != JsonValueKind.Object ||
+                !document.RootElement.TryGetProperty("port", out var portElement) ||
+                portElement.ValueKind != JsonValueKind.Number || // TryGetInt32 throws on non-numbers
+                !portElement.TryGetInt32(out var port) ||
+                port is < 0 or > ushort.MaxValue)
             {
-                throw new InvalidDataException("config.json port must be an integer.");
+                return null;
             }
 
-            ValidatePort(port);
             return port;
         }
-        catch (JsonException exception)
+        catch (Exception exception) when (exception is JsonException or IOException or UnauthorizedAccessException)
         {
-            throw new InvalidDataException("config.json must contain valid JSON.", exception);
+            return null;
         }
     }
 

@@ -1,5 +1,6 @@
 using System.Net;
 using System.Security.Cryptography;
+using HardwareLive.Core.Profiles;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Hosting.Server;
@@ -39,7 +40,10 @@ public sealed class HardwareLiveServer : IAsyncDisposable
     public static HardwareLiveServer Create(ITelemetrySource telemetry, int port = DefaultPort) =>
         Create(port, telemetry);
 
-    public static HardwareLiveServer Create(int port, ITelemetrySource telemetry)
+    public static HardwareLiveServer Create(int port, ITelemetrySource telemetry) =>
+        Create(port, telemetry, UserThresholdConfig.Empty);
+
+    public static HardwareLiveServer Create(int port, ITelemetrySource telemetry, UserThresholdConfig thresholdConfig)
     {
         if (port is < 0 or > ushort.MaxValue)
         {
@@ -73,7 +77,7 @@ public sealed class HardwareLiveServer : IAsyncDisposable
 
         // This must remain the first middleware in the pipeline.
         application.Use(HostHeaderGuard);
-        var router = new RequestRouter(tokenBytes, token, new InMemoryLayoutStore(), telemetry);
+        var router = new RequestRouter(tokenBytes, token, new InMemoryLayoutStore(), telemetry, thresholdConfig);
         application.Run(router.HandleAsync);
 
         return new HardwareLiveServer(application, token);

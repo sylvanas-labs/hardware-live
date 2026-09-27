@@ -45,8 +45,12 @@ public sealed class ClassifierApiTests
     }
 
     [Fact]
-    public async Task HealthReasonIsAnalysisNotImplementedWhenAllMandatoryRolesAreMapped()
+    public async Task HealthIsHealthyForTheRealFixtureWithNoConcerningReadings()
     {
+        // Every temperature in this fixture is well under its watch threshold (e.g. the
+        // 9800X3D at 54 C vs a 95 C profile limit), there's no load/clock history to trigger
+        // a throttle or trend concern, and no fan has stopped -- so once step 4 wires real
+        // analysis in, this fixture is the "nothing wrong" case, not "not implemented".
         var frame = ClassificationFixtures.LoadFrame("amd-9800x3d_nvidia-5090_desktop");
         var store = new TelemetryStore();
         store.Add(frame);
@@ -55,7 +59,8 @@ public sealed class ClassifierApiTests
         using var response = await host.Client.GetAsync("/api/health");
         using var health = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
 
-        Assert.Equal("UNKNOWN", health.RootElement.GetProperty("status").GetString());
-        Assert.Equal("analysis not implemented", health.RootElement.GetProperty("reason").GetString());
+        Assert.Equal("HEALTHY", health.RootElement.GetProperty("status").GetString());
+        Assert.True(string.IsNullOrEmpty(health.RootElement.GetProperty("reason").GetString()));
+        Assert.False(string.IsNullOrWhiteSpace(health.RootElement.GetProperty("headline").GetString()));
     }
 }

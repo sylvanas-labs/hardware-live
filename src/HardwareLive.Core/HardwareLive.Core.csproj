@@ -15,4 +15,8 @@
     <ProjectReference Include="..\HardwareLive.Protocol\HardwareLive.Protocol.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <EmbeddedResource Include="Profiles\profiles.json" LogicalName="HardwareLive.Core.Profiles.profiles.json" />
+  </ItemGroup>
+
 </Project>

@@ -28,6 +28,27 @@ public sealed class PortConfigurationTests
         }
     }
 
+    [Theory]
+    [InlineData("{ this is not json")]
+    [InlineData("""{"port":"eight"}""")]
+    [InlineData("""{"port":70000}""")]
+    [InlineData("""{"port":-1}""")]
+    [InlineData("""[1,2,3]""")]
+    [InlineData("")]
+    public void BrokenConfigFileNeverCrashesAndFallsBackToDefault(string content)
+    {
+        // config.json is user-editable in %LOCALAPPDATA%; a typo must not stop the app.
+        var configPath = WriteConfig(content);
+        try
+        {
+            Assert.Equal(HardwareLiveServer.DefaultPort, PortConfiguration.Resolve([], configPath));
+        }
+        finally
+        {
+            File.Delete(configPath);
+        }
+    }
+
     [Fact]
     public void PortArgumentOverridesConfigAndUrlsArgumentIsIgnored()
     {

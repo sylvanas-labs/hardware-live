@@ -1,7 +1,12 @@
 using HardwareLive.Core;
+using HardwareLive.Core.Profiles;
 
-var configPath = Path.Combine(AppContext.BaseDirectory, "config.json");
+// %LOCALAPPDATA%\HardwareLive\config.json takes priority (the app runs unelevated and
+// Program Files is read-only); the app-base-directory file is a backward-compatible
+// fallback for installs that predate this location.
+var configPath = ConfigPaths.Resolve(AppContext.BaseDirectory);
 var port = PortConfiguration.Resolve(args, configPath);
+var thresholdConfig = UserThresholdConfig.Load(configPath);
 var store = new TelemetryStore();
 // Installed layout: <root>\app\HardwareLive.App.exe and <root>\sampler\hl-sampler.exe.
 // They must be separate folders: the sampler is published self-contained, and its private
@@ -14,7 +19,7 @@ var samplerTask = Task.Run(() => samplerClient.RunAsync(samplerCancellation.Toke
 
 try
 {
-    await using var server = HardwareLiveServer.Create(port, store);
+    await using var server = HardwareLiveServer.Create(port, store, thresholdConfig);
     await server.StartAsync();
     await server.WaitForShutdownAsync();
 }
