@@ -105,21 +105,31 @@ source. PawnIO (GPLv2+) is not bundled.
      `install.ps1` offers to add the user, with an explicit consent prompt that explains it
      lets the user start ETW trace sessions. FPS stays off if they decline.
    - `install.ps1` records in `config.json` whether **it** added the membership
-     (`perfLogUsersAddedByApp`) or found it already there. `uninstall.ps1` offers to remove
+     (`perfLogUsersAddedByApp`) or found it already there. The flag is **monotonic**: a
+     reinstall or upgrade never overwrites `true` with `false`, and it's cleared only after
+     uninstall successfully removes the membership. `uninstall.ps1` offers to remove
      it only when the app added it, explaining the effect, and never touches pre-existing
      membership.
    - **Target eligibility (r4.1).** The target is the foreground-window process
      (`GetForegroundWindow` → PID) **only if** all of the following hold:
-     - it has presented at ≥ 20 frames/s for 3 consecutive 1 s buckets;
+     - **Positive game signal:** its foreground window covers its whole monitor (exclusive or
+       borderless fullscreen), **or** PresentMon reports a hardware/independent-flip present
+       mode for it. Ordinary windowed apps never auto-qualify; windowed games need a pin.
+     - It has presented at ≥ 20 frames/s for 3 consecutive 1 s buckets.
      - it isn't on the built-in denylist: `explorer`, `dwm`, browsers
        (`msedge`/`chrome`/`firefox`/`brave`/`opera`), launchers and overlays
        (`steam`/`steamwebhelper`/`EpicGamesLauncher`/`Battle.net`/`Discord`/`obs64`/
-       `nvcontainer`), and our own Edge app window;
+       `nvcontainer`), media players (`vlc`/`wmplayer`/`Video.UI`/`mpc-hc64`/`mpv`/
+       `PotPlayerMini64`), and our own Edge app window. The denylist is a secondary guard, not
+       the main filter;
      - it isn't a system or session-0 process.
 
      Otherwise there's **no target** and FPS tiles show "–". There is **no** "most presents"
      fallback. Users can pin a process ("always track X") or extend the denylist in
      `config.json`.
+   - **Accepted residual:** a non-denylisted fullscreen app presenting at 20+ fps (e.g. an
+     unlisted video player) can still be picked. The FPS tile always shows `fps.app`, so any
+     misattribution is visible, and the user can deny it with one click.
    - Derived values (exact formulas, r4.1). Frames are bucketed by `CPUStartQPCTime`
      (`--qpc_time_ms`) into aligned, half-open 1 s buckets `[k, k+1000) ms`. `ft` is each
      frame's `MsBetweenPresents`. Every row PresentMon emits for the target counts,
@@ -220,12 +230,17 @@ source. PawnIO (GPLv2+) is not bundled.
     - idle desktop gives "–"
     - a browser playing 60 fps video in the foreground gives "–" (denylist)
     - a launcher in the foreground while a game runs behind it gives "–"
-    - a game in the foreground gives a value
+    - VLC or Windows Media Player playing video **windowed** gives "–"; fullscreen gives "–"
+      (denylist)
+    - a windowed non-game app animating at 60 fps gives "–" (no fullscreen signal)
+    - a game in the foreground (fullscreen or borderless) gives a value
     - a pinned process gives a value even when it isn't in the foreground
   - Permission round-trip:
     - a user not in the group: install with consent, then uninstall and accept removal
       leaves them not in the group
     - a user already in the group: install then uninstall leaves the membership untouched
+    - regression: install with consent, then reinstall/upgrade (flag still `true`), then
+      uninstall and accept removal leaves them not in the group
   - Not in Performance Log Users: FPS tiles show a "needs permission" hint, and nothing
     crashes.
   - Killing PresentMon leads to restart, then "FPS unavailable" after 3 failures.
@@ -256,6 +271,7 @@ source. PawnIO (GPLv2+) is not bundled.
 - Codex adversarial review r1: verdict needs-attention (4 findings, all accepted: loopback,
   RawValue/units, classifier proof, lifecycle).
 - Codex scoped review of r4 (vs 49406b8): 3 medium findings (permission rollback, FPS target
-  eligibility, FPS oracle), all accepted and fixed in r4.1.
+  eligibility, FPS oracle), all accepted and fixed in r4.1. Round 2: 2 medium findings (non-game
+  fullscreen apps, provenance across reinstall), fixed in r4.2 with one documented residual.
 - Codex scoped re-verify of r2 (vs 94c26b5): confirmed r1's 4 resolved; 3 new medium findings
   (GET-only vs layout writes, elevated monolith, role-only presets), all accepted and fixed in r3.
