@@ -143,7 +143,10 @@ source. PawnIO (GPLv2+) is not bundled.
 ## Acceptance criteria (v1)
 
 - **Security:**
-  - A test proves the listener rejects a non-loopback `Host` header and non-GET methods.
+  - A test proves the listener rejects a non-loopback `Host` header on every route.
+  - A method/path matrix test covers every combination. The only allowed non-GET calls are
+    the token-guarded `POST/PUT/DELETE /api/layouts[/{id}]` and `POST /api/layouts/import`.
+    Every other method on every other route, and any mutation verb on read routes, returns 405.
   - From a second machine on the LAN, the port is unreachable (manual check, recorded in
     RUNBOOK).
   - A unit test proves no LHM control API is referenced.
