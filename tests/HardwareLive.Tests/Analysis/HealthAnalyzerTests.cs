@@ -106,6 +106,50 @@ public sealed class HealthAnalyzerTests
         Assert.Equal(HealthStatus.CRITICAL, result.Status);
     }
 
+    // ---- Finding 4: AMD CCD fallback must track the live max, not the frozen winner -----
+
+    [Fact]
+    public void AmdCcdFallbackUsesLiveMaxAcrossCcdsNotTheFrozenClassificationWinner()
+    {
+        const string ccd0Id = "/cpu/ccd0"; // won classification (hottest at the time)
+        const string ccd1Id = "/cpu/ccd1";
+        var controlRole = Role(ccd0Id, Roles.CpuTempControl, "/cpu/0");
+        var ccd1Role = Role(ccd1Id, Roles.CpuTempCcd, "/cpu/0");
+        var classification = new ClassificationResult(
+            [controlRole, ccd1Role], [], "/cpu/0", "/gpu/0", [], CpuControlIsCcdMax: true);
+        var thresholds = Thresholds((ccd0Id, 88, 95));
+
+        // CCD0 was hottest when classification ran (95), but CCD1 overtakes it later (98).
+        // The analyzer must react to CCD1's current value, not stay pinned to CCD0.
+        var snapshot = Snapshot(
+            (ccd0Id, Repeat(70f, 29).Append((float?)95f).ToArray()),
+            (ccd1Id, Repeat(60f, 29).Append((float?)98f).ToArray()));
+
+        var result = HealthAnalyzer.Analyze(snapshot, classification, thresholds, false);
+
+        var concern = Assert.Single(result.Concerns, c => c.SensorId == ccd0Id);
+        Assert.Equal(ConcernLevel.Critical, concern.Level);
+        Assert.Contains("98", concern.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void NoCcdFallbackLeavesControlTempReadingItsOwnSensorUnchanged()
+    {
+        // CpuControlIsCcdMax defaults to false (a real Tctl/Tdie sensor exists): the
+        // control role must read its own history, ignoring any other cpu.temp.ccd sensor.
+        var controlRole = Role(CpuTempId, Roles.CpuTempControl, "/cpu/0");
+        var ccdRole = Role("/cpu/ccd0", Roles.CpuTempCcd, "/cpu/0");
+        var classification = new ClassificationResult([controlRole, ccdRole], [], "/cpu/0", "/gpu/0", []);
+        var thresholds = Thresholds((CpuTempId, 88, 95));
+        var snapshot = Snapshot(
+            (CpuTempId, [70f]),
+            ("/cpu/ccd0", [99f])); // hotter, but must be ignored: no fallback in play
+
+        var result = HealthAnalyzer.Analyze(snapshot, classification, thresholds, false);
+
+        Assert.DoesNotContain(result.Concerns, c => c.SensorId == CpuTempId);
+    }
+
     [Fact]
     public void CpuControlAtLimitWithClockCollapseIsCritical()
     {

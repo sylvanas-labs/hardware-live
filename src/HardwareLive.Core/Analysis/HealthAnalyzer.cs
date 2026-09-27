@@ -84,7 +84,7 @@ public static class HealthAnalyzer
                 continue;
             }
 
-            var value = LatestValue(GetHistory(snapshot, role.SensorId));
+            var value = LatestValue(GetTemperatureHistory(snapshot, classification, role));
             if (value is not { } v || !float.IsFinite(v))
             {
                 continue;
@@ -99,6 +99,64 @@ public static class HealthAnalyzer
                 EvaluateGenericTemp(role, v, threshold, concerns);
             }
         }
+    }
+
+    /// <summary>Finding 4: the AMD CCD fallback (<see cref="ClassificationResult.CpuControlIsCcdMax"/>)
+    /// freezes which single CCD sensor id carries the <see cref="Roles.CpuTempControl"/>
+    /// role at classification time. Using that one sensor's own history would silently stop
+    /// tracking the actual hottest CCD once a different one overtakes it. Instead, for that
+    /// role only, compute max(that sensor's history, every <see cref="Roles.CpuTempCcd"/>
+    /// sensor's history) per sample, tail-aligned (histories are "last N samples" ring
+    /// buffers, so index 0 doesn't necessarily mean the same wall-clock sample across
+    /// sensors with different lengths).</summary>
+    private static float?[] GetTemperatureHistory(TelemetrySnapshot snapshot, ClassificationResult classification, SensorRole role)
+    {
+        if (role.Role != Roles.CpuTempControl || !classification.CpuControlIsCcdMax)
+        {
+            return GetHistory(snapshot, role.SensorId);
+        }
+
+        return GetControlTempMaxHistory(snapshot, classification, role.SensorId);
+    }
+
+    private static float?[] GetControlTempMaxHistory(TelemetrySnapshot snapshot, ClassificationResult classification, string controlSensorId)
+    {
+        var ccdSensorIds = classification.Roles
+            .Where(r => r.Role == Roles.CpuTempCcd)
+            .Select(r => r.SensorId)
+            .Append(controlSensorId)
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+
+        var histories = ccdSensorIds.Select(id => GetHistory(snapshot, id)).Where(h => h.Length > 0).ToArray();
+        if (histories.Length == 0)
+        {
+            return GetHistory(snapshot, controlSensorId);
+        }
+
+        var length = histories.Max(h => h.Length);
+        var result = new float?[length];
+        for (var i = 0; i < length; i++)
+        {
+            float? max = null;
+            foreach (var history in histories)
+            {
+                var offset = length - history.Length;
+                if (i < offset)
+                {
+                    continue;
+                }
+
+                if (history[i - offset] is { } value && float.IsFinite(value) && (max is null || value > max))
+                {
+                    max = value;
+                }
+            }
+
+            result[i] = max;
+        }
+
+        return result;
     }
 
     private static void EvaluateGenericTemp(SensorRole role, float value, ThresholdEntry threshold, List<Concern> concerns)
@@ -178,7 +236,7 @@ public static class HealthAnalyzer
                 continue;
             }
 
-            var history = GetHistory(snapshot, role.SensorId);
+            var history = GetTemperatureHistory(snapshot, classification, role);
             var window = history.Length > TrendWindow ? history[^TrendWindow..] : history;
 
             var points = new List<(double X, double Y)>();
@@ -433,8 +491,11 @@ public static class HealthAnalyzer
         return string.Join(", ", parts) + ".";
     }
 
-    private static float? SingleValue(TelemetrySnapshot snapshot, ClassificationResult classification, string role) =>
-        TryGetSingleSensorId(classification, role, out var sensorId) ? LatestValue(GetHistory(snapshot, sensorId)) : null;
+    private static float? SingleValue(TelemetrySnapshot snapshot, ClassificationResult classification, string role)
+    {
+        var match = classification.Roles.FirstOrDefault(r => r.Role == role);
+        return match is null ? null : LatestValue(GetTemperatureHistory(snapshot, classification, match));
+    }
 
     // ---- Shared helpers ----------------------------------------------------------------
 

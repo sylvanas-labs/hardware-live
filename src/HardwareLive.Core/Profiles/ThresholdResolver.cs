@@ -81,6 +81,7 @@ public static class ThresholdResolver
         var gpuProfile = gpuName is not null ? MatchProfile(table.Gpu, gpuName) : null;
 
         var thresholds = new Dictionary<string, ThresholdEntry>(StringComparer.Ordinal);
+        var ignoredOverrides = new List<IgnoredOverride>();
         foreach (var role in classification.Roles)
         {
             if (!TemperatureRoles.Contains(role.Role))
@@ -88,7 +89,7 @@ public static class ThresholdResolver
                 continue;
             }
 
-            var entry = ResolveOne(
+            var (entry, ignored) = ResolveOne(
                 role,
                 overrides,
                 deviceLimitsByTarget,
@@ -103,12 +104,17 @@ public static class ThresholdResolver
             {
                 thresholds[role.SensorId] = entry;
             }
+
+            if (ignored is not null)
+            {
+                ignoredOverrides.Add(ignored);
+            }
         }
 
-        return new ThresholdResolution(thresholds, cpuProfile?.Name, gpuProfile?.Name);
+        return new ThresholdResolution(thresholds, cpuProfile?.Name, gpuProfile?.Name) { IgnoredOverrides = ignoredOverrides };
     }
 
-    private static ThresholdEntry? ResolveOne(
+    private static (ThresholdEntry? Entry, IgnoredOverride? Ignored) ResolveOne(
         SensorRole role,
         UserThresholdConfig overrides,
         Dictionary<string, List<LimitSensor>> deviceLimitsByTarget,
@@ -119,31 +125,39 @@ public static class ThresholdResolver
         ProfileEntry? gpuProfile,
         ProfileTable table)
     {
-        var (watch, critical, source, confidence, origin) = ResolveBase(
+        var (baseWatch, baseCritical, source, confidence, baseOrigin) = ResolveBase(
             role, deviceLimitsByTarget, valueBySensorId, primaryCpuId, primaryGpuId, cpuProfile, gpuProfile, table);
 
-        if (TryGetOverride(role, overrides, out var overrideValue))
+        if (!TryGetOverride(role, overrides, out var overrideValue))
         {
-            if (overrideValue.Watch is { } ow)
-            {
-                watch = ow;
-            }
-
-            if (overrideValue.Critical is { } oc)
-            {
-                critical = oc;
-            }
-
-            origin = ThresholdOrigin.Override;
+            return (BuildEntry(baseWatch, baseCritical, source, confidence, baseOrigin), null);
         }
 
-        if (watch is null || critical is null || !(watch > 0 && watch <= critical && critical <= 150))
+        var candidateWatch = overrideValue.Watch ?? baseWatch;
+        var candidateCritical = overrideValue.Critical ?? baseCritical;
+
+        if (IsValidPair(candidateWatch, candidateCritical))
         {
-            return null;
+            return (BuildEntry(candidateWatch, candidateCritical, source, confidence, ThresholdOrigin.Override), null);
         }
 
-        return new ThresholdEntry(watch.Value, critical.Value, source, confidence, origin);
+        // Invariant: a partial override must never remove monitoring. If the override,
+        // merged with the fully resolved base (device/profile/generic), would produce an
+        // invalid watch/critical pair, drop the override entirely for this sensor and
+        // keep the base threshold instead -- but still surface that it happened.
+        var baseEntry = BuildEntry(baseWatch, baseCritical, source, confidence, baseOrigin);
+        var reason = $"override (watch={FormatOrNull(overrideValue.Watch)}, critical={FormatOrNull(overrideValue.Critical)}) " +
+            $"merged with the base threshold (watch={FormatOrNull(baseWatch)}, critical={FormatOrNull(baseCritical)}) is invalid; kept the base threshold";
+        return (baseEntry, new IgnoredOverride(role.SensorId, reason));
     }
+
+    private static ThresholdEntry? BuildEntry(double? watch, double? critical, string source, string confidence, string origin) =>
+        IsValidPair(watch, critical) ? new ThresholdEntry(watch!.Value, critical!.Value, source, confidence, origin) : null;
+
+    private static bool IsValidPair(double? watch, double? critical) =>
+        watch is not null && critical is not null && watch > 0 && watch <= critical && critical <= 150;
+
+    private static string FormatOrNull(double? value) => value?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "null";
 
     private static (double? Watch, double? Critical, string Source, string Confidence, string Origin) ResolveBase(
         SensorRole role,

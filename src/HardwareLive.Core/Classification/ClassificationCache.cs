@@ -4,11 +4,15 @@ namespace HardwareLive.Core.Classification;
 
 /// <summary>
 /// Reclassifies only when the latest frame's distinct sensor-id set changes, so a busy
-/// <c>/api/meta</c> poller doesn't re-run the classifier every request. Known tradeoff:
-/// the AMD control-temp fallback (max of the "CCDn (Tdie)" readings, used only when no
-/// "Core (Tctl/Tdie)"-style sensor exists) depends on live values, so on that fallback
-/// path the cached result can lag by up to one id-set-unchanged window. Accepted per
-/// spec: caching is keyed on the sensor-id set, not sensor values.
+/// <c>/api/meta</c> poller doesn't re-run the classifier every request. Caching is keyed
+/// on the sensor-id set, not sensor values, so the classifier still freezes which CCD was
+/// hottest at classification time on the AMD control-temp fallback (max of the
+/// "CCDn (Tdie)" readings, used only
+/// when no "Core (Tctl/Tdie)"-style sensor exists) -- that choice is frozen in
+/// <see cref="ClassificationResult.Roles"/> until the sensor-id set changes. This no
+/// longer causes stale health analysis: <see cref="ClassificationResult.CpuControlIsCcdMax"/>
+/// tells <c>HealthAnalyzer</c> to recompute max(all CCDs) fresh from each sample instead
+/// of trusting the cached winner's own history.
 /// </summary>
 public sealed class ClassificationCache
 {

@@ -1,3 +1,4 @@
+using System.Security.Principal;
 using System.Text.Json;
 using HardwareLive.Protocol;
 
@@ -7,8 +8,13 @@ public static class SamplerApplication
 {
     public static async Task<int> RunAsync(
         IReadOnlyList<string> args,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        Func<bool>? isSystemIdentity = null,
+        Func<ISensorFrameSampler>? createSampler = null)
     {
+        isSystemIdentity ??= DefaultIsSystemIdentity;
+        createSampler ??= static () => new HardwareSensorSampler();
+
         var command = SamplerCommand.Parse(args);
         if (command.Kind == SamplerCommandKind.Invalid)
         {
@@ -22,9 +28,20 @@ public static class SamplerApplication
             return 0;
         }
 
+        // Serve mode is the only mode that opens the SYSTEM-owned pipe and streams live
+        // hardware telemetry; --dump stays available to anyone (docs/SPEC.md fixture
+        // tool, component 10). command.DevAllowNonSystem can only ever be true in a
+        // Debug build (see SamplerCommand.Parse's #if DEBUG branch), so Release always
+        // enforces this unconditionally.
+        if (command.Kind == SamplerCommandKind.Serve && !command.DevAllowNonSystem && !isSystemIdentity())
+        {
+            SamplerLog.Write("Serve mode requires the sampler process to run as SYSTEM. Refusing to start.");
+            return 4;
+        }
+
         try
         {
-            using var sampler = new HardwareSensorSampler();
+            using var sampler = createSampler();
             if (command.Kind == SamplerCommandKind.Dump)
             {
                 sampler.Sample();
@@ -47,6 +64,19 @@ public static class SamplerApplication
         {
             SamplerLog.Write($"Sampler failed: {exception}");
             return 1;
+        }
+    }
+
+    private static bool DefaultIsSystemIdentity()
+    {
+        try
+        {
+            using var identity = WindowsIdentity.GetCurrent();
+            return identity.IsSystem;
+        }
+        catch
+        {
+            return false;
         }
     }
 }

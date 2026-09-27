@@ -62,4 +62,22 @@ public sealed class SamplerCommandTests
         Assert.Equal(SamplerCommandKind.Help, SamplerCommand.Parse(["--help"]).Kind);
         Assert.Equal(SamplerCommandKind.Invalid, SamplerCommand.Parse(["--wat"]).Kind);
     }
+
+    [Fact]
+    public void DevAllowNonSystemFlagOnlyParsesInADebugBuild()
+    {
+        // r5 hardening: the flag is compiled under #if DEBUG in SamplerCommand.Parse, so
+        // its recognition depends on the build configuration the *test assembly* runs
+        // under -- the baseline gate for this repo is `dotnet test -c Release`, which
+        // never defines DEBUG, so this test exercises (and pins) the Release behavior:
+        // the flag is unrecognized and the whole command is Invalid.
+        var args = new[] { "--user-sid", ValidUserSid, "--dev-allow-non-system" };
+#if DEBUG
+        var command = SamplerCommand.Parse(args);
+        Assert.Equal(SamplerCommandKind.Serve, command.Kind);
+        Assert.True(command.DevAllowNonSystem);
+#else
+        Assert.Equal(SamplerCommandKind.Invalid, SamplerCommand.Parse(args).Kind);
+#endif
+    }
 }

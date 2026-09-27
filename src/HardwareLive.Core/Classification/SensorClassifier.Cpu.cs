@@ -20,7 +20,7 @@ public static partial class SensorClassifier
     [GeneratedRegex(@"^core #\d+$")]
     private static partial Regex AmdClockPattern();
 
-    private static void ClassifyCpu(string hardwareId, List<SensorReading> sensors, List<LimitSensor> limits, AddRoleFn addRole)
+    private static bool ClassifyCpu(string hardwareId, List<SensorReading> sensors, List<LimitSensor> limits, AddRoleFn addRole)
     {
         var isAmd = hardwareId.StartsWith("/amdcpu/", StringComparison.Ordinal);
         var isIntel = hardwareId.StartsWith("/intelcpu/", StringComparison.Ordinal);
@@ -28,15 +28,16 @@ public static partial class SensorClassifier
         {
             // Unknown CPU vendor path: no LHM facts to classify against. Leave
             // unclassified rather than guess (documented ambiguity).
-            return;
+            return false;
         }
 
         var temps = sensors.Where(s => s.Type == "Temperature").ToList();
         var handled = new HashSet<string>(StringComparer.Ordinal);
+        var cpuControlIsCcdMax = false;
 
         if (isAmd)
         {
-            ClassifyAmdControlTemp(temps, handled, addRole);
+            cpuControlIsCcdMax = ClassifyAmdControlTemp(temps, handled, addRole);
             foreach (var s in temps.Where(s => !handled.Contains(s.Id) && CcdTdiePattern().IsMatch(Normalize(s.Name))))
             {
                 addRole(s, Roles.CpuTempCcd, Confidence.High, ExtractInstance(s.Name));
@@ -122,9 +123,17 @@ public static partial class SensorClassifier
                 addRole(s, Roles.CpuVoltageCore, Confidence.High);
             }
         }
+
+        return cpuControlIsCcdMax;
     }
 
-    private static void ClassifyAmdControlTemp(List<SensorReading> temps, HashSet<string> handled, AddRoleFn addRole)
+    /// <summary>Returns true when the control temperature was resolved via the CCD
+    /// fallback (no Tctl/Tdie-style sensor exists), so the caller can flag
+    /// <see cref="ClassificationResult.CpuControlIsCcdMax"/>. The winning CCD still gets
+    /// the sole <see cref="Roles.CpuTempControl"/> role (never also
+    /// <see cref="Roles.CpuTempCcd"/>, since it's added to <paramref name="handled"/>);
+    /// HealthAnalyzer is responsible for re-including it when computing max(all CCDs).</summary>
+    private static bool ClassifyAmdControlTemp(List<SensorReading> temps, HashSet<string> handled, AddRoleFn addRole)
     {
         SensorReading? control =
             FindExact(temps, "core (tctl/tdie)") ??
@@ -132,6 +141,7 @@ public static partial class SensorClassifier
             FindExact(temps, "core (tdie)") ??
             FindExact(temps, "tctl");
         var confidence = Confidence.High;
+        var isCcdFallback = false;
 
         if (control is null)
         {
@@ -140,6 +150,7 @@ public static partial class SensorClassifier
             {
                 control = ccdCandidates.OrderByDescending(s => s.Value ?? float.NegativeInfinity).First();
                 confidence = Confidence.Medium;
+                isCcdFallback = true;
             }
         }
 
@@ -148,6 +159,8 @@ public static partial class SensorClassifier
             addRole(control, Roles.CpuTempControl, confidence);
             handled.Add(control.Id);
         }
+
+        return isCcdFallback;
     }
 
     private static void ClassifyIntelControlTemp(List<SensorReading> temps, HashSet<string> handled, AddRoleFn addRole)

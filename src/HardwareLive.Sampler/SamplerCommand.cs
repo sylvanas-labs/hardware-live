@@ -10,7 +10,11 @@ public enum SamplerCommandKind
     Invalid,
 }
 
-public sealed record SamplerCommand(SamplerCommandKind Kind, string? DumpPath = null, SecurityIdentifier? UserSid = null)
+public sealed record SamplerCommand(
+    SamplerCommandKind Kind,
+    string? DumpPath = null,
+    SecurityIdentifier? UserSid = null,
+    bool DevAllowNonSystem = false)
 {
     public static SamplerCommand Parse(IReadOnlyList<string> args)
     {
@@ -33,6 +37,22 @@ public sealed record SamplerCommand(SamplerCommandKind Kind, string? DumpPath = 
                 ? new SamplerCommand(SamplerCommandKind.Invalid)
                 : new SamplerCommand(SamplerCommandKind.Serve, UserSid: sid);
         }
+
+#if DEBUG
+        // Dev-only escape hatch (r5 hardening): lets a developer run serve mode from an
+        // unelevated shell while iterating. Compiled out entirely in Release, so this
+        // 3-arg shape is simply unrecognized there and falls through to Invalid below --
+        // Release builds never parse `--dev-allow-non-system` at all.
+        if (args.Count == 3 &&
+            string.Equals(args[0], "--user-sid", StringComparison.Ordinal) &&
+            string.Equals(args[2], "--dev-allow-non-system", StringComparison.Ordinal))
+        {
+            var sid = TryParseTargetUserSid(args[1]);
+            return sid is null
+                ? new SamplerCommand(SamplerCommandKind.Invalid)
+                : new SamplerCommand(SamplerCommandKind.Serve, UserSid: sid, DevAllowNonSystem: true);
+        }
+#endif
 
         return new SamplerCommand(SamplerCommandKind.Invalid);
     }

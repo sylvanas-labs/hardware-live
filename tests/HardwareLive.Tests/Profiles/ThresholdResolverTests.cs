@@ -1,3 +1,5 @@
+using HardwareLive.Core;
+using HardwareLive.Core.Analysis;
 using HardwareLive.Core.Classification;
 using HardwareLive.Core.Profiles;
 using HardwareLive.Tests.Classification;
@@ -160,6 +162,74 @@ public sealed class ThresholdResolverTests
         var cpu = resolution.Thresholds[cpuRole.SensorId];
         Assert.Equal(88, cpu.Watch);
         Assert.Equal(95, cpu.Critical);
+    }
+
+    // ---- Finding 3: partial override must never remove monitoring --------------------
+
+    [Fact]
+    public void CriticalOnlyOverrideBelowBaseWatchIsIgnoredAndAnalyzerStillReportsCritical()
+    {
+        var frame = ClassificationFixtures.LoadFrame("amd-9800x3d_nvidia-5090_desktop");
+        var classification = SensorClassifier.Classify(frame);
+        var cpuRole = Assert.Single(classification.Roles, r => r.Role == Roles.CpuTempControl);
+        // Base for this fixture is watch 88 / critical 95 (vendor profile). A critical-only
+        // override of 50 is below the inherited watch, so the merged pair (88, 50) is invalid.
+        var config = ConfigWith("""{"thresholds":{"cpu.temp.control":{"critical":50}}}""");
+
+        var resolution = ThresholdResolver.Resolve(frame, classification, config);
+
+        var cpu = resolution.Thresholds[cpuRole.SensorId];
+        Assert.Equal(88, cpu.Watch);
+        Assert.Equal(95, cpu.Critical);
+        Assert.Equal(ThresholdOrigin.Profile, cpu.Origin);
+        Assert.Contains(resolution.IgnoredOverrides, i => i.SensorId == cpuRole.SensorId);
+
+        var snapshot = new TelemetrySnapshot(
+            null,
+            false,
+            new Dictionary<string, IReadOnlyList<float?>>(StringComparer.Ordinal)
+            {
+                [cpuRole.SensorId] = [98f],
+            });
+        var result = HealthAnalyzer.Analyze(snapshot, classification, resolution, false);
+        Assert.Contains(result.Concerns, c => c.SensorId == cpuRole.SensorId && c.Level == ConcernLevel.Critical);
+    }
+
+    [Fact]
+    public void WatchOnlyOverrideAboveBaseCriticalIsIgnored()
+    {
+        var frame = ClassificationFixtures.LoadFrame("amd-9800x3d_nvidia-5090_desktop");
+        var classification = SensorClassifier.Classify(frame);
+        var cpuRole = Assert.Single(classification.Roles, r => r.Role == Roles.CpuTempControl);
+        // Base is watch 88 / critical 95. A watch-only override of 150 exceeds critical,
+        // so the merged pair (150, 95) is invalid.
+        var config = ConfigWith("""{"thresholds":{"cpu.temp.control":{"watch":150}}}""");
+
+        var resolution = ThresholdResolver.Resolve(frame, classification, config);
+
+        var cpu = resolution.Thresholds[cpuRole.SensorId];
+        Assert.Equal(88, cpu.Watch);
+        Assert.Equal(95, cpu.Critical);
+        Assert.Equal(ThresholdOrigin.Profile, cpu.Origin);
+        Assert.Contains(resolution.IgnoredOverrides, i => i.SensorId == cpuRole.SensorId);
+    }
+
+    [Fact]
+    public void ValidPartialOverrideIsAppliedAndNotIgnored()
+    {
+        var frame = ClassificationFixtures.LoadFrame("amd-9800x3d_nvidia-5090_desktop");
+        var classification = SensorClassifier.Classify(frame);
+        var cpuRole = Assert.Single(classification.Roles, r => r.Role == Roles.CpuTempControl);
+        // Watch-only override of 80 combined with the inherited critical of 95 is valid.
+        var config = ConfigWith("""{"thresholds":{"cpu.temp.control":{"watch":80}}}""");
+
+        var resolution = ThresholdResolver.Resolve(frame, classification, config);
+
+        var cpu = resolution.Thresholds[cpuRole.SensorId];
+        Assert.Equal(80, cpu.Watch);
+        Assert.Equal(95, cpu.Critical);
+        Assert.Equal(ThresholdOrigin.Override, cpu.Origin);
+        Assert.DoesNotContain(resolution.IgnoredOverrides, i => i.SensorId == cpuRole.SensorId);
     }
 
     [Fact]

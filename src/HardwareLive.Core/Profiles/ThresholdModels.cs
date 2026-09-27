@@ -33,8 +33,20 @@ public sealed record ThresholdResolution(
     string? CpuProfile,
     string? GpuProfile)
 {
+    /// <summary>Sensors where a user override, merged with the inherited base threshold,
+    /// would have produced an invalid watch/critical pair (e.g. a critical-only override
+    /// below the inherited watch). The invariant is "partial overrides never remove
+    /// monitoring": the override is dropped for that sensor and <see cref="Thresholds"/>
+    /// keeps the fully resolved base threshold instead. Empty in the common case.</summary>
+    public IReadOnlyList<IgnoredOverride> IgnoredOverrides { get; init; } = [];
+
     public static readonly ThresholdResolution Empty = new(new Dictionary<string, ThresholdEntry>(StringComparer.Ordinal), null, null);
 }
+
+/// <summary>One override that <see cref="ThresholdResolver"/> refused to apply, and why.
+/// Concern-worthy at INFO level: the sensor is still monitored (via the base threshold),
+/// but the user's configured override for it silently did nothing.</summary>
+public sealed record IgnoredOverride(string SensorId, string Reason);
 
 /// <summary>One role's limit inside a profile entry or the generic fallback table. Either
 /// <see cref="Limit"/> (the CPU/GPU "watch = limit-7, critical = limit" shorthand) or the
