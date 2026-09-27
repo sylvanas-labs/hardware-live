@@ -1,6 +1,6 @@
 # Hardware Live: portable v1 spec
 
-Status: **DRAFT r3, awaiting Alessa's approval.** No code until approved.
+Status: **APPROVED r4 (2026-09-27).** Open questions resolved; r4 adds FPS capture.
 r2 folds in the Codex adversarial review (2026-09-27) and Alessa's layout/preset request.
 r3 fixes r2's review: privilege split, authenticated layout writes, exact-sensor preset refs.
 
@@ -95,7 +95,24 @@ source. PawnIO (GPLv2+) is not bundled.
    - PawnIO missing means the UI shows a guided-install banner and CPU/board tiles read "needs
      PawnIO", not zero.
    - `uninstall.ps1` removes the task and config.
-9. **Fixture tool.** `hardware-live.exe --dump fixture.json` captures the full sensor tree,
+9. **FPS capture (r4, opt-in).** Uses the PresentMon console app, MIT, **pinned v2.6.0**.
+   - The exe is bundled with its license, and its SHA-256 is verified at build time. It is
+     never downloaded at runtime.
+   - It's spawned by the **unelevated** `hardware-live.exe` with `--output_stdout --no_csv
+     --no_console_stats --v2_metrics --session_name HardwareLive --stop_existing_session`.
+   - Needs no admin, only membership in the Windows **Performance Log Users** group.
+     `install.ps1` offers to add the user, with an explicit consent prompt that explains it
+     lets the user start ETW trace sessions. FPS stays off if they decline.
+   - Target app = the process owning the foreground window (`GetForegroundWindow` → PID),
+     falling back to the process with the most presents in the last second.
+   - Derived values:
+     - `fps.avg` (1 s window)
+     - `fps.low1` (1% low over the last 60 s)
+     - `frametime.ms` (plus a jitter chart)
+     - `fps.app` (process name)
+   - PresentMon exits or crashes: restart with backoff; after 3 failures, show "FPS
+     unavailable" rather than a stale number. No game running: FPS tiles show "–", not 0.
+10. **Fixture tool.** `hardware-live.exe --dump fixture.json` captures the full sensor tree,
    so friends can send us fixtures from their hardware.
 
 ## Customizable layout: draggable tiles, filters, presets
@@ -120,7 +137,7 @@ source. PawnIO (GPLv2+) is not bundled.
 | Overview | The current prototype layout (default) |
 | CPU | Control temp, per-CCD temps, package power, effective clock (avg + per core), load, CPU fan/pump, VRM; charts: temp+power, clock+load |
 | GPU | Core, hotspot, memory temps; power + % of limit; core/mem clock; load; VRAM; fans; voltage |
-| 3D Gaming | CPU control temp + clock + load, GPU core/hotspot/mem temps, GPU power, GPU clock + load, VRAM used, RAM used; chart: CPU vs GPU load (spots which side is the bottleneck) |
+| 3D Gaming | **FPS avg + 1% low + frame-time chart + app name**, CPU control temp + clock + load, GPU core/hotspot/mem temps, GPU power, GPU clock + load, VRAM used, RAM used; chart: CPU vs GPU load (spots which side is the bottleneck) |
 | Thermals | Every temperature sensor, sorted by headroom to its limit |
 | Cooling | All fans + pump RPM and duty %, alongside the temps they cool |
 | Storage | Drive temps, activity, SMART life/spare |
@@ -173,17 +190,23 @@ source. PawnIO (GPLv2+) is not bundled.
   - A preset exported on one machine and imported on another skips missing roles without
     errors.
   - Keyboard reorder works.
+- **FPS:**
+  - With a game in the foreground, `fps.avg` is within ±5% of PresentMon's own CSV for the
+    same 60 s.
+  - Not in Performance Log Users: FPS tiles show a "needs permission" hint, and nothing
+    crashes.
+  - Killing PresentMon leads to restart, then "FPS unavailable" after 3 failures.
+  - A test fixture parses recorded `--v2_metrics` stdout.
 - **Parity:** the prototype's features are present, i.e. the analysis panel, trends and notes
   hook. Alessa's GPU off-bus panel is a **Later** plugin, since it's machine-specific.
 
-## Open questions for Alessa
+## Resolved decisions (Alessa, 2026-09-27)
 
-1. **Visibility and license:** keep it private and share builds, or go public? If public: MIT
-   (our code) plus the MPL notice for the bundled LHM DLL.
-2. **Code signing:** unsigned `.exe` files trigger SmartScreen on friends' PCs. Sign with the
-   existing desktop-app-template key, or accept the warning for v1?
-3. **FPS in the 3D Gaming preset:** LHM has no frame rate. Adding it means PresentMon (MIT, a
-   separate binary). Put it in v1 or Later?
+1. **Public repo, MIT license** for our code. `THIRD-PARTY-NOTICES.md` covers LHM (MPL-2.0,
+   unmodified DLL + source link) and PresentMon (MIT).
+2. **Unsigned v1.** SmartScreen will warn, and the README documents "More info, then Run
+   anyway". Signing is Later.
+3. **FPS is in v1** via PresentMon (component 9).
 
 ## Research log
 
@@ -194,6 +217,9 @@ source. PawnIO (GPLv2+) is not bundled.
   GPLv2+ (github.com/namazso/PawnIO)
 - NuGet LibreHardwareMonitorLib 0.9.6: netstandard2.0 / net452 / net5.0
 - HWiNFO free shared-memory 12h cap: hwinfo.com/licenses
+- PresentMon: github.com/GameTechDev/PresentMon, MIT, v2.6.0 (2026-09-21); console flags per
+  README-ConsoleApplication.md; "Performance Log Users" requirement + admin caveat
+  (cross-user/short-lived processes show `<unknown>`) per README.md. Read 2026-09-27.
 - Codex adversarial review r1: verdict needs-attention (4 findings, all accepted: loopback,
   RawValue/units, classifier proof, lifecycle).
 - Codex scoped re-verify of r2 (vs 94c26b5): confirmed r1's 4 resolved; 3 new medium findings
