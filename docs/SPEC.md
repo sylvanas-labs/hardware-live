@@ -1,107 +1,161 @@
 # Hardware Live: portable v1 spec
 
-Status: **DRAFT, awaiting Alessa's approval.** No code until approved.
+Status: **DRAFT r2, awaiting Alessa's approval.** No code until approved.
+r2 folds in the Codex adversarial review (2026-09-27) and Alessa's layout/preset request.
 
 ## Goal
 
 A local, shareable Windows hardware dashboard. It shows live CPU, GPU, board, RAM, storage
-and fan telemetry with a rule-based health assessment. It must work on an arbitrary PC, not
-just the one it was prototyped on.
+and fan telemetry with a rule-based health assessment and a **customizable, preset-driven
+layout**. It must work on an arbitrary PC.
 
-The prototype lives at `~/.claude/scripts/hwdash/` and is hardwired to one machine
-(exact sensor names, paths, thresholds). This repo generalizes it.
+The prototype lives at `~/.claude/scripts/hwdash/` and is hardwired to one machine. This repo
+generalizes it.
 
-## Non-goals (v1)
+## Invariants (must never break)
 
-- Fan control or any hardware **writes**. The app is read-only, always.
-- Remote or multi-machine monitoring. Binds to 127.0.0.1 only.
-- Linux or macOS.
-- Built-in LLM commentary. The notes panel stays a passive file hook (see below).
+1. **Read-only.**
+   - We never call any LHM control or `Set` API.
+   - We never write fan, clock or voltage values.
+   - A unit test asserts that no control API is referenced.
+2. **Loopback only.** The HTTP listener binds `127.0.0.1` explicitly.
+   - Reject any request whose `Host` header isn't `127.0.0.1:<port>` or `localhost:<port>`
+     (blocks DNS rebinding).
+   - GET only, no CORS headers.
+3. **No hidden installs.** Drivers (PawnIO) are detected and guided, never silently installed.
 
-## Architecture decision: data source
+## Data source decision (changed in r2)
 
-| Option | Pros | Cons |
-|---|---|---|
-| **A. Read LibreHardwareMonitor's built-in web server** (`http://localhost:8085/data.json`) | No sensor code of our own, no admin rights for our app, no DLL redistribution, and LHM already handles every board/CPU/GPU | The user must install LHM and PawnIO, enable "Run Web Server", and run LHM elevated. Two apps. |
-| B. Our own sampler using `LibreHardwareMonitorLib` (NuGet 0.9.6, netstandard2.0) | Single app, full control | Our app needs admin, plus an MPL-2.0 notice/source obligation for the DLL. More code, and it overlaps LHM's own job. |
-| C. HWiNFO shared memory | Very broad sensor coverage | The free tier's shared memory auto-disables after 12h, so it's not viable unattended. |
+| Option | Verdict |
+|---|---|
+| A. LHM app's built-in web server (`:8085/data.json`) | **Rejected: violates invariant 2.** Verified in LHM source (`HttpServer.cs`, `MainForm.cs`): the default `listenerIp` is `"?"`, and any IP not found in `Dns.GetHostEntry(hostname).AddressList` is coerced to `"+"` (all interfaces). Loopback isn't in that list, so **it can't be made local-only**. Auth is off by default, and it accepts `Sensor?action=Set` (hardware writes). Enabling it on a friend's PC could expose fan and control writes to their LAN. |
+| **B. Our own sampler on `LibreHardwareMonitorLib`** (NuGet 0.9.6, netstandard2.0) | **Chosen.** One process: we control the binding, read-only use, and lifecycle. |
+| C. HWiNFO shared memory | Rejected: the free tier auto-disables after 12h. |
 
-**Recommendation: A for v1**, behind a `SensorSource` adapter interface, so B (or the
-prototype's CSV feed) can be added later without touching the UI.
+**Runtime: one self-contained .NET 9 single-file `.exe`** (C#, matching the org's desktop
+convention; `desktop-app-template` is a candidate base, confirm before starting). This
+settles r1's Python-vs-PyInstaller question: the recipient needs no runtime. The HTML/JS UI
+is embedded as resources.
 
-Verified 2026-09-27 (sources in the research log below):
-- LHM 0.9.6 (2026-02-14) serves `/data.json`: a tree of `Children[]`, where leaf sensors carry
-  `SensorId`, `Text`, `Value`, `Min`, `Max`, `Type`.
-- LHM uses **PawnIO** (not WinRing0) since PR #1857. PawnIO is a separate install (GPLv2+).
-  Without it, CPU and board sensors are missing.
-- LHM is MPL-2.0. Under option A we redistribute nothing from it.
+**Licensing:** LHM is MPL-2.0. We ship its DLL unmodified, include its license, and link to its
+source. PawnIO (GPLv2+) is not bundled.
 
 ## Components
 
-1. **`SensorSource` adapters**
-   - `LhmHttpSource` (v1 default): polls `data.json` at 1 Hz and flattens the tree into
-     `{id, hardware, hardwareType, sensorType, name, value, unit}`.
-   - `CsvSource` (optional): the prototype's `SensorSampler` CSV, so Alessa's machine keeps
-     working unchanged.
-2. **Server:** Python stdlib `http.server` (no pip dependencies).
-   - Keeps an in-memory ring buffer (5 min) and session peaks.
-   - Endpoints: `/api/snapshot`, `/api/meta` (detected hardware), `/api/health`.
-3. **Classifier:** maps raw sensors to roles (`cpu.temp.package`, `gpu.temp.core`,
-   `gpu.temp.memjunction`, `gpu.power`, `fan.*`, `storage.temp`, `dimm.temp`, `vrm.temp`, ...)
-   using the LHM `SensorType` plus name heuristics.
-   - Unknown sensors still show up in an "Other" group. Nothing is silently dropped.
-4. **Threshold profiles:** `profiles/*.json` keyed by CPU/GPU model regex, e.g.
-   - `9800X3D` → Tjmax 95
-   - `RTX 50xx` core 90, memory junction 105
-   - A conservative generic fallback for anything unmatched
-   - User overrides in `config.json`
-5. **Analysis engine:** the prototype's rules, generalized to roles:
-   - status: HEALTHY, WATCH or CRITICAL
-   - load phase detection
+1. **Sampler.** `Computer` from LibreHardwareMonitorLib, all hardware groups enabled, polled at 1 Hz.
+   - Numeric `float?` values only; null means "no reading" and never crashes anything.
+   - Temperatures in °C from the library, not display strings.
+   - Keeps a 5-min ring buffer, session peaks, and a CSV session log (opt-in).
+2. **Loopback server.** `HttpListener` on `http://127.0.0.1:<port>/`, enforcing invariant 2.
+   - `/api/snapshot`, `/api/meta` (hardware tree + roles), `/api/health`, static UI.
+3. **Classifier** (sensor to role).
+   - Uses, in priority order: the LHM `HardwareType`, then `SensorType`, then the stable
+     `Identifier` path, and names only as the last fallback.
+   - Roles: `cpu.temp.control` (the temperature that throttles), `cpu.power`, `cpu.clock.eff`,
+     `gpu.temp.core`, `gpu.temp.hotspot`, `gpu.temp.mem`, `gpu.power`, `gpu.load`,
+     `fan.cpu`, `pump`, `storage.temp`, `dimm.temp`, `vrm.temp`, and so on.
+   - Each mapping carries a confidence. **If a mandatory role (CPU control temp, GPU core
+     temp) can't be mapped confidently, health reports `UNKNOWN`, never `HEALTHY`.**
+4. **Threshold profiles.**
+   - A small table keyed by CPU/GPU model (e.g. 9800X3D Tjmax 95; RTX 50xx core 90 / mem 105).
+   - A conservative generic fallback, plus user overrides in `config.json`.
+5. **Analysis engine** (ported from the prototype, running on roles):
+   - status: HEALTHY, WATCH, CRITICAL or UNKNOWN
+   - load-phase detection
    - temperature slope and time-to-limit
-   - throttle detection (full load with a low clock)
+   - throttle detection
    - fan or pump stall
-   - stale data source
-6. **UI:** the prototype page, with tiles generated from `/api/meta` instead of hardcoded.
-   - Sections are built from whatever hardware exists.
-   - Dark/light theme.
-7. **Notes hook (optional):** if `notes.json` (`{at, ts, lines[]}`) exists, it's shown under
-   the analysis and dimmed once it's more than 30 min old. Any tool, including a Claude
-   session, can write it.
-8. **Install and autostart:** `install.ps1`, ASCII-only and PowerShell 5.1-safe.
-   - Checks for Python 3.11+ and offers the `winget` install.
-   - Checks LHM + PawnIO: prints the steps, never installs drivers silently.
-   - Registers a per-user logon task that opens an Edge `--app` window.
-   - `uninstall.ps1` reverses all of it.
+   - stale sampler
+6. **Customizable UI** (new in r2, see next section).
+7. **Notes hook (optional).** Shows `notes.json` (`{at, ts, lines[]}`), dimmed after 30 min.
+8. **Install and lifecycle** (`install.ps1`, ASCII, PowerShell 5.1-safe). One elevated
+   per-user logon task runs the `.exe`.
+   - Restart-on-failure: 3 tries, 1 min apart.
+   - The `.exe` opens an Edge `--app` window once it's listening.
+   - PawnIO missing means the UI shows a guided-install banner and CPU/board tiles read "needs
+     PawnIO", not zero.
+   - `uninstall.ps1` removes the task and config.
+9. **Fixture tool.** `hardware-live.exe --dump fixture.json` captures the full sensor tree,
+   so friends can send us fixtures from their hardware.
+
+## Customizable layout: draggable tiles, filters, presets
+
+- **Widgets:** every sensor, and every derived value, can be a widget.
+  - Widget kinds: `tile` (value + sparkline + peak), `chart` (multi-series line), `gauge`,
+    `analysis` (the status panel), `notes`.
+  - Tiles resize in 3 sizes (S/M/L).
+- **Drag to reorder** on a responsive grid, with native pointer events (no library).
+  - Keyboard accessible: select a tile, then use the arrow keys to move it.
+  - There's an explicit **Edit layout** toggle so tiles don't move by accident during normal use.
+- **Filtering and granular picking:** a searchable sensor picker lets you add any individual
+  sensor.
+  - Filters: text, hardware (CPU/GPU/board/storage/...), sensor type (temp/power/clock/
+    load/fan/voltage), and "only sensors with a role".
+  - A quick filter bar hides or shows whole groups without editing the preset.
+- **Presets** are named layouts: an ordered widget list with sizes, plus chart
+  definitions and analysis focus. Built-in presets:
+
+| Preset | Contents |
+|---|---|
+| Overview | The current prototype layout (default) |
+| CPU | Control temp, per-CCD temps, package power, effective clock (avg + per core), load, CPU fan/pump, VRM; charts: temp+power, clock+load |
+| GPU | Core, hotspot, memory temps; power + % of limit; core/mem clock; load; VRAM; fans; voltage |
+| 3D Gaming | CPU control temp + clock + load, GPU core/hotspot/mem temps, GPU power, GPU clock + load, VRAM used, RAM used; chart: CPU vs GPU load (spots which side is the bottleneck) |
+| Thermals | Every temperature sensor, sorted by headroom to its limit |
+| Cooling | All fans + pump RPM and duty %, alongside the temps they cool |
+| Storage | Drive temps, activity, SMART life/spare |
+
+  - **Custom presets:** "Save as preset", rename, duplicate, delete. Built-ins can't be
+    overwritten; editing one forks a custom copy.
+  - Stored server-side in `layouts.json` (it survives browser resets and reinstalls), with
+    **export/import** as JSON for sharing. Last-used preset is remembered.
+  - Presets reference **roles**, not raw sensor IDs. The same "3D Gaming" preset then works
+    on any PC, and missing roles are simply skipped.
+  - Analysis focus follows the preset: the CPU preset surfaces CPU concerns first. Critical
+    items always show, regardless of preset.
 
 ## Acceptance criteria (v1)
 
-- On a PC that is **not** Alessa's, with LHM running and its web server on, `install.ps1` then
-  logon shows populated CPU/GPU/storage tiles with no code edits.
-- With LHM missing or its web server off, the page shows a clear setup message, not a blank
-  grid or a crash.
-- Nothing ever binds to anything other than 127.0.0.1.
-- Classifier unit tests pass against at least 3 recorded `data.json` fixtures (AMD+NVIDIA,
-  Intel+AMD GPU, laptop).
-- Analysis unit tests cover each rule's trigger and non-trigger, plus null/empty sensor values
-  (no crash on `Value: null` or missing `Children`).
-- The prototype's `CsvSource` still renders Alessa's machine identically.
+- **Security:**
+  - A test proves the listener rejects a non-loopback `Host` header and non-GET methods.
+  - From a second machine on the LAN, the port is unreachable (manual check, recorded in
+    RUNBOOK).
+  - A unit test proves no LHM control API is referenced.
+- **Classifier:** golden expected-role files for each fixture, with at least 4 fixtures:
+  AMD CPU + NVIDIA, Intel CPU + AMD GPU, Intel laptop + iGPU, and Alessa's 9800X3D/5090.
+  - Includes ambiguous, duplicate and missing-sensor cases.
+  - A missing mandatory role yields `UNKNOWN`.
+- **Analysis:** each rule has trigger and non-trigger tests, plus null/NaN/absent values.
+- **Lifecycle:** clean second PC, run `install.ps1`, reboot, and the dashboard opens populated
+  with no manual steps.
+  - Also covered: killing the `.exe` (it restarts within 1 min), PawnIO absent (guided
+    banner, not zeros), and upgrading over an existing install (keeps `layouts.json`).
+- **Layout:**
+  - Drag-reorder persists across a restart.
+  - Switching presets changes the visible widgets.
+  - A preset exported on one machine and imported on another skips missing roles without
+    errors.
+  - Keyboard reorder works.
+- **Parity:** the prototype's features are present, i.e. the analysis panel, trends and notes
+  hook. Alessa's GPU off-bus panel is a **Later** plugin, since it's machine-specific.
 
 ## Open questions for Alessa
 
-1. **Runtime:** plain Python (the recipient needs Python) vs a PyInstaller single `.exe` (no
-   Python needed, but AV false positives are common with PyInstaller). Recommend: `.exe` for
-   handoff builds, script for dev.
-2. **Visibility and license:** keep the repo private and share builds, or make it public? If
-   public, which license? (MIT fits option A, since we ship no LHM code.)
-3. **Off-bus GPU edge panel:** that's specific to Alessa's rig. Keep it as an optional plugin
-   fed by `CsvSource`, or drop it from the portable build?
+1. **Visibility and license:** keep it private and share builds, or go public? If public: MIT
+   (our code) plus the MPL notice for the bundled LHM DLL.
+2. **Code signing:** unsigned `.exe` files trigger SmartScreen on friends' PCs. Sign with the
+   existing desktop-app-template key, or accept the warning for v1?
+3. **FPS in the 3D Gaming preset:** LHM has no frame rate. Adding it means PresentMon (MIT, a
+   separate binary). Put it in v1 or Later?
 
 ## Research log
 
-- LHM web server and JSON: home-assistant.io/integrations/libre_hardware_monitor, LHM issue #1737,
-  docs.yasb.dev libre-hw-monitor widget, GitHub releases API (0.9.6, 2026-02-14)
-- License: MPL-2.0 per the LHM README. PawnIO: github.com/namazso/PawnIO (GPLv2+), LHM PR #1857,
-  discussion #2149
+- LHM web server risk: `LibreHardwareMonitor.Windows.Forms/Utilities/HttpServer.cs` L100-124
+  (IP validation falls back to `"+"`; auth defaults), L242-250 & L306-358 (`Set` action / POST);
+  `UI/MainForm.cs` L316-318 (`listenerIp` default `"?"`, auth default false). Read 2026-09-27.
+- LHM 0.9.6 (2026-02-14), MPL-2.0; WinRing0 replaced by PawnIO (PR #1857); PawnIO separate,
+  GPLv2+ (github.com/namazso/PawnIO)
 - NuGet LibreHardwareMonitorLib 0.9.6: netstandard2.0 / net452 / net5.0
 - HWiNFO free shared-memory 12h cap: hwinfo.com/licenses
+- Codex adversarial review r1: verdict needs-attention (4 findings, all accepted: loopback,
+  RawValue/units, classifier proof, lifecycle).
