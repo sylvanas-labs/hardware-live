@@ -28,8 +28,15 @@ generalizes it.
      can't forge writes.
    - Bodies are capped at 256 KB and schema-validated. No CORS headers, ever.
 3. **No hidden installs.** Drivers (PawnIO) are detected and guided, never silently installed.
-4. **Least privilege.** Only the sampler runs elevated. HTTP, JSON/layout parsing and the
-   browser always run at the user's normal (medium) integrity level.
+4. **Least privilege.** Only the sampler runs elevated (as SYSTEM). HTTP, JSON/layout parsing
+   and the browser always run at the user's normal (medium) integrity level.
+5. **AI is optional, never required** (Alessa, 2026-09-27: most users won't have Claude Code
+   or Codex).
+   - Every feature works with no AI tool, no network and no account.
+   - The health analysis is deterministic rules. It's labeled "Health analysis", never "AI".
+   - AI commentary is an optional add-on through the notes hook (Component 7). With no notes
+     file the notes UI is **completely hidden**: no placeholder, no "waiting for Claude"
+     text, and no mention of any AI product.
 
 ## Data source decision (changed in r2)
 
@@ -82,7 +89,7 @@ source. PawnIO (GPLv2+) is not bundled.
 
 ## Components
 
-1. **Sampler** (`hl-sampler.exe`, elevated, minimal). `Computer` from LibreHardwareMonitorLib, all hardware groups enabled, polled at 1 Hz.
+1. **Sampler** (`hl-sampler.exe`, runs as SYSTEM, minimal). `Computer` from LibreHardwareMonitorLib, all hardware groups enabled, polled at 1 Hz.
    - Numeric `float?` values only; null means "no reading" and never crashes anything.
    - Temperatures in °C from the library, not display strings.
    - Streams frames over the pipe. Nothing else: no HTTP, no file parsing, no config writes.
@@ -112,7 +119,22 @@ source. PawnIO (GPLv2+) is not bundled.
    - fan or pump stall
    - stale sampler
 6. **Customizable UI** (new in r2, see next section).
-7. **Notes hook (optional).** Shows `notes.json` (`{at, ts, lines[]}`), dimmed after 30 min.
+7. **Notes hook (optional add-on, see Invariant 5).** It reads
+   `%LOCALAPPDATA%\HardwareLive\notes.json` (`{ at, ts, source?, lines[] }`), which any tool
+   can write: Claude Code, Codex, a script, or the user.
+   - `GET /api/notes` returns 204 when the file is absent. The UI then renders **no notes
+     element at all**.
+   - Notes are untrusted input:
+     - file size at most 16 KB
+     - at most 20 lines, each at most 500 chars
+     - control characters stripped
+     - rendered as plain text only
+     - invalid file means no notes (the app logs it and never crashes)
+   - Dimmed and labeled "from <source>, N min ago" once older than 30 min.
+   - `source` is shown only if present (e.g. "Claude Code"). The app never names an AI
+     product on its own.
+   - `docs/NOTES-HOOK.md` documents the contract, with an optional example of how a Claude Code
+     or Codex user can wire it up. Nothing in the app depends on it.
 8. **Install and lifecycle** (`install.ps1`, ASCII, PowerShell 5.1-safe). Two per-user logon
    tasks:
    - `HL-Sampler`: runs as **SYSTEM** at logon, with `hl-sampler.exe --user-sid <SID>` from
