@@ -1,7 +1,8 @@
 # Hardware Live: portable v1 spec
 
-Status: **DRAFT r2, awaiting Alessa's approval.** No code until approved.
+Status: **DRAFT r3, awaiting Alessa's approval.** No code until approved.
 r2 folds in the Codex adversarial review (2026-09-27) and Alessa's layout/preset request.
+r3 fixes r2's review: privilege split, authenticated layout writes, exact-sensor preset refs.
 
 ## Goal
 
@@ -21,8 +22,14 @@ generalizes it.
 2. **Loopback only.** The HTTP listener binds `127.0.0.1` explicitly.
    - Reject any request whose `Host` header isn't `127.0.0.1:<port>` or `localhost:<port>`
      (blocks DNS rebinding).
-   - GET only, no CORS headers.
+   - Read endpoints are GET only. Layout writes use POST/PUT/DELETE and require an
+     `X-HL-Token` header matching a random per-launch token embedded in the served page.
+   - A custom header forces a CORS preflight, which we never approve, so cross-origin pages
+     can't forge writes.
+   - Bodies are capped at 256 KB and schema-validated. No CORS headers, ever.
 3. **No hidden installs.** Drivers (PawnIO) are detected and guided, never silently installed.
+4. **Least privilege.** Only the sampler runs elevated. HTTP, JSON/layout parsing and the
+   browser always run at the user's normal (medium) integrity level.
 
 ## Data source decision (changed in r2)
 
@@ -32,7 +39,14 @@ generalizes it.
 | **B. Our own sampler on `LibreHardwareMonitorLib`** (NuGet 0.9.6, netstandard2.0) | **Chosen.** One process: we control the binding, read-only use, and lifecycle. |
 | C. HWiNFO shared memory | Rejected: the free tier auto-disables after 12h. |
 
-**Runtime: one self-contained .NET 9 single-file `.exe`** (C#, matching the org's desktop
+**Runtime: .NET 9, self-contained, two small executables** (r3 privilege split):
+- `hl-sampler.exe` (elevated): LibreHardwareMonitorLib only. It **pushes** JSON snapshot
+  frames one way over a named pipe. The pipe ACL grants the current user only, and the
+  sampler accepts no inbound commands (it ignores anything read from the pipe).
+- `hardware-live.exe` (unelevated): pipe client, HTTP server, layouts, analysis. It
+  launches Edge.
+
+This is (C#, matching the org's desktop
 convention; `desktop-app-template` is a candidate base, confirm before starting). This
 settles r1's Python-vs-PyInstaller question: the recipient needs no runtime. The HTML/JS UI
 is embedded as resources.
@@ -42,12 +56,16 @@ source. PawnIO (GPLv2+) is not bundled.
 
 ## Components
 
-1. **Sampler.** `Computer` from LibreHardwareMonitorLib, all hardware groups enabled, polled at 1 Hz.
+1. **Sampler** (`hl-sampler.exe`, elevated, minimal). `Computer` from LibreHardwareMonitorLib, all hardware groups enabled, polled at 1 Hz.
    - Numeric `float?` values only; null means "no reading" and never crashes anything.
    - Temperatures in °C from the library, not display strings.
+   - Streams frames over the pipe. Nothing else: no HTTP, no file parsing, no config writes.
+2. **Loopback server** (`hardware-live.exe`, unelevated). `HttpListener` on
+   `http://127.0.0.1:<port>/`, enforcing invariant 2.
    - Keeps a 5-min ring buffer, session peaks, and a CSV session log (opt-in).
-2. **Loopback server.** `HttpListener` on `http://127.0.0.1:<port>/`, enforcing invariant 2.
-   - `/api/snapshot`, `/api/meta` (hardware tree + roles), `/api/health`, static UI.
+   - GET: `/api/snapshot`, `/api/meta` (hardware tree + roles), `/api/health`, static UI.
+   - Token-guarded writes: `POST/PUT/DELETE /api/layouts[/{id}]`, `POST /api/layouts/import`.
+   - With no sampler frames arriving, the UI shows a "sampler not running" state.
 3. **Classifier** (sensor to role).
    - Uses, in priority order: the LHM `HardwareType`, then `SensorType`, then the stable
      `Identifier` path, and names only as the last fallback.
@@ -68,10 +86,12 @@ source. PawnIO (GPLv2+) is not bundled.
    - stale sampler
 6. **Customizable UI** (new in r2, see next section).
 7. **Notes hook (optional).** Shows `notes.json` (`{at, ts, lines[]}`), dimmed after 30 min.
-8. **Install and lifecycle** (`install.ps1`, ASCII, PowerShell 5.1-safe). One elevated
-   per-user logon task runs the `.exe`.
-   - Restart-on-failure: 3 tries, 1 min apart.
-   - The `.exe` opens an Edge `--app` window once it's listening.
+8. **Install and lifecycle** (`install.ps1`, ASCII, PowerShell 5.1-safe). Two per-user logon
+   tasks:
+   - `HL-Sampler`: RunLevel Highest.
+   - `HL-App`: RunLevel Limited. It waits for the pipe and opens an Edge `--app` window
+     from the unelevated process.
+   - Both restart on failure: 3 tries, 1 min apart.
    - PawnIO missing means the UI shows a guided-install banner and CPU/board tiles read "needs
      PawnIO", not zero.
    - `uninstall.ps1` removes the task and config.
@@ -109,8 +129,14 @@ source. PawnIO (GPLv2+) is not bundled.
     overwritten; editing one forks a custom copy.
   - Stored server-side in `layouts.json` (it survives browser resets and reinstalls), with
     **export/import** as JSON for sharing. Last-used preset is remembered.
-  - Presets reference **roles**, not raw sensor IDs. The same "3D Gaming" preset then works
-    on any PC, and missing roles are simply skipped.
+  - **Widget references (r3).** Each widget has a `ref`:
+    - `{role}`: built-ins use role selectors, so "3D Gaming" works on any PC. A multi-match
+      role (e.g. `cpu.clock.core`) expands to every matching sensor, in identifier order.
+    - `{id, hw, role?}`: custom widgets store the stable LHM `Identifier` (e.g.
+      `/amdcpu/0/clock/3`) plus hardware name/identifier, with an optional role fallback.
+      This keeps individual, per-core, duplicate-role and unclassified sensors exact.
+    - Resolution order on load or import: exact `id` on matching hardware, then the `role`
+      fallback, then skip with a visible "N widgets unavailable on this PC" notice.
   - Analysis focus follows the preset: the CPU preset surfaces CPU concerns first. Critical
     items always show, regardless of preset.
 
@@ -130,8 +156,16 @@ source. PawnIO (GPLv2+) is not bundled.
   with no manual steps.
   - Also covered: killing the `.exe` (it restarts within 1 min), PawnIO absent (guided
     banner, not zeros), and upgrading over an existing install (keeps `layouts.json`).
+- **Privilege split:** `hardware-live.exe` and Edge show medium integrity in Process Explorer
+  and only `hl-sampler.exe` is elevated. A test proves the sampler ignores inbound pipe
+  data, and the pipe ACL denies other users.
+- **Write auth:** tests show that a write without a token, a write with a wrong token,
+  an oversize body and a malformed schema are all rejected. A cross-origin page (different
+  port) can't mutate layouts.
 - **Layout:**
   - Drag-reorder persists across a restart.
+  - Round-trip test: a custom layout with per-core clocks, two duplicate-role fans and an
+    unclassified sensor saves and reloads to exactly the same widgets.
   - Switching presets changes the visible widgets.
   - A preset exported on one machine and imported on another skips missing roles without
     errors.
@@ -159,3 +193,5 @@ source. PawnIO (GPLv2+) is not bundled.
 - HWiNFO free shared-memory 12h cap: hwinfo.com/licenses
 - Codex adversarial review r1: verdict needs-attention (4 findings, all accepted: loopback,
   RawValue/units, classifier proof, lifecycle).
+- Codex scoped re-verify of r2 (vs 94c26b5): confirmed r1's 4 resolved; 3 new medium findings
+  (GET-only vs layout writes, elevated monolith, role-only presets), all accepted and fixed in r3.
