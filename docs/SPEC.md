@@ -94,7 +94,8 @@ source. PawnIO (GPLv2+) is not bundled.
    - Both restart on failure: 3 tries, 1 min apart.
    - PawnIO missing means the UI shows a guided-install banner and CPU/board tiles read "needs
      PawnIO", not zero.
-   - `uninstall.ps1` removes the task and config.
+   - `uninstall.ps1` removes both tasks and the config, and handles the Performance Log
+     Users rollback (component 9).
 9. **FPS capture (r4, opt-in).** Uses the PresentMon console app, MIT, **pinned v2.6.0**.
    - The exe is bundled with its license, and its SHA-256 is verified at build time. It is
      never downloaded at runtime.
@@ -103,13 +104,32 @@ source. PawnIO (GPLv2+) is not bundled.
    - Needs no admin, only membership in the Windows **Performance Log Users** group.
      `install.ps1` offers to add the user, with an explicit consent prompt that explains it
      lets the user start ETW trace sessions. FPS stays off if they decline.
-   - Target app = the process owning the foreground window (`GetForegroundWindow` → PID),
-     falling back to the process with the most presents in the last second.
-   - Derived values:
-     - `fps.avg` (1 s window)
-     - `fps.low1` (1% low over the last 60 s)
-     - `frametime.ms` (plus a jitter chart)
-     - `fps.app` (process name)
+   - `install.ps1` records in `config.json` whether **it** added the membership
+     (`perfLogUsersAddedByApp`) or found it already there. `uninstall.ps1` offers to remove
+     it only when the app added it, explaining the effect, and never touches pre-existing
+     membership.
+   - **Target eligibility (r4.1).** The target is the foreground-window process
+     (`GetForegroundWindow` → PID) **only if** all of the following hold:
+     - it has presented at ≥ 20 frames/s for 3 consecutive 1 s buckets;
+     - it isn't on the built-in denylist: `explorer`, `dwm`, browsers
+       (`msedge`/`chrome`/`firefox`/`brave`/`opera`), launchers and overlays
+       (`steam`/`steamwebhelper`/`EpicGamesLauncher`/`Battle.net`/`Discord`/`obs64`/
+       `nvcontainer`), and our own Edge app window;
+     - it isn't a system or session-0 process.
+
+     Otherwise there's **no target** and FPS tiles show "–". There is **no** "most presents"
+     fallback. Users can pin a process ("always track X") or extend the denylist in
+     `config.json`.
+   - Derived values (exact formulas, r4.1). Frames are bucketed by `CPUStartQPCTime`
+     (`--qpc_time_ms`) into aligned, half-open 1 s buckets `[k, k+1000) ms`. `ft` is each
+     frame's `MsBetweenPresents`. Every row PresentMon emits for the target counts,
+     including dropped frames.
+     - `fps.avg[k]` = 1000 · n_k / Σ ft over bucket k (no value when n_k < 2)
+     - `fps.low1` = 1000 / P99(ft) over the frames in the last 60 buckets, using the
+       nearest-rank percentile (no value when there are < 100 frames)
+     - `frametime.ms[k]` = mean ft in bucket k
+     - `frametime.jitter[k]` = population stddev of ft in bucket k
+     - `fps.app` = the target's process name
    - PresentMon exits or crashes: restart with backoff; after 3 failures, show "FPS
      unavailable" rather than a stale number. No game running: FPS tiles show "–", not 0.
 10. **Fixture tool.** `hardware-live.exe --dump fixture.json` captures the full sensor tree,
@@ -191,8 +211,21 @@ source. PawnIO (GPLv2+) is not bundled.
     errors.
   - Keyboard reorder works.
 - **FPS:**
-  - With a game in the foreground, `fps.avg` is within ±5% of PresentMon's own CSV for the
-    same 60 s.
+  - Deterministic oracle: `tests/oracle/fps_oracle.py`, an independent reference
+    implementation of the formulas above, runs over recorded `--v2_metrics` fixtures (at
+    least one 60 s game capture with dropped frames). The C# output must match the oracle
+    for **every** aligned bucket's `fps.avg`, `frametime.ms` and `frametime.jitter`, and for
+    `fps.low1`, within 0.01.
+  - Target cases:
+    - idle desktop gives "–"
+    - a browser playing 60 fps video in the foreground gives "–" (denylist)
+    - a launcher in the foreground while a game runs behind it gives "–"
+    - a game in the foreground gives a value
+    - a pinned process gives a value even when it isn't in the foreground
+  - Permission round-trip:
+    - a user not in the group: install with consent, then uninstall and accept removal
+      leaves them not in the group
+    - a user already in the group: install then uninstall leaves the membership untouched
   - Not in Performance Log Users: FPS tiles show a "needs permission" hint, and nothing
     crashes.
   - Killing PresentMon leads to restart, then "FPS unavailable" after 3 failures.
@@ -222,5 +255,7 @@ source. PawnIO (GPLv2+) is not bundled.
   (cross-user/short-lived processes show `<unknown>`) per README.md. Read 2026-09-27.
 - Codex adversarial review r1: verdict needs-attention (4 findings, all accepted: loopback,
   RawValue/units, classifier proof, lifecycle).
+- Codex scoped review of r4 (vs 49406b8): 3 medium findings (permission rollback, FPS target
+  eligibility, FPS oracle), all accepted and fixed in r4.1.
 - Codex scoped re-verify of r2 (vs 94c26b5): confirmed r1's 4 resolved; 3 new medium findings
   (GET-only vs layout writes, elevated monolith, role-only presets), all accepted and fixed in r3.
