@@ -3,7 +3,6 @@
 Full spec: [docs/SPEC.md](docs/SPEC.md) (APPROVED r4).
 
 ## Now
-- [ ] Supervised real install/uninstall on Alessa's PC + live check; final package
 - [ ] Human-only: golden fixtures from 3 other machines; clean second-PC reboot test; LAN-unreachability check from another machine; FPS accuracy in a real game
 
 ## Soon (in order)
@@ -16,6 +15,13 @@ Full spec: [docs/SPEC.md](docs/SPEC.md) (APPROVED r4).
 - Light theme polish, CSV export of a session, alert sounds
 
 ## Done
+- 2026-09-27 Supervised real install/upgrade/uninstall on Alessa's PC (0.1.0-alpha.4, FPS
+  included): SYSTEM sampler + Limited app tasks, protected ACLs, weak pre-existing ProgramData
+  renamed aside, upgrade reused the trusted tree, HEALTHY live in browser, clean uninstall with
+  Performance Log Users left untouched (pre-existing member). Found + fixed: unelevated app
+  couldn't OpenProcess the SYSTEM sampler (sampler now grants the user 0x1000 on its own
+  process DACL; Opus review CLEAN); health reason now names the failing identity check;
+  package.ps1/fetch-presentmon.ps1 interface mismatch; ConfigPaths test isolation.
 - 2026-09-27 Packaging + install/uninstall/lifecycle complete (step 8): `tools/package.ps1`
   (self-contained win-x64 app+sampler, licenses incl. full MPL-2.0 text, SHA256SUMS.txt,
   zip); `install.ps1` (self-elevate capturing the pre-elevation SID, PASS/WARN/FAIL preflight,
