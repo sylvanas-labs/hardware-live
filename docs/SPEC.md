@@ -39,7 +39,11 @@ generalizes it.
 | **B. Our own sampler on `LibreHardwareMonitorLib`** (NuGet 0.9.6, netstandard2.0) | **Chosen.** One process: we control the binding, read-only use, and lifecycle. |
 | C. HWiNFO shared memory | Rejected: the free tier auto-disables after 12h. |
 
-**Runtime: .NET 9, self-contained, two small executables** (r3 privilege split):
+**Runtime: .NET 9, self-contained, two small executables.** Both are built as windowed apps
+(`OutputType=WinExe`) so logon tasks never flash a console window. Not based on
+`desktop-app-template`: that's a WinForms GUI with update machinery, and this is a
+background sampler plus a browser UI. We reuse its conventions only (net9, xunit, and later its
+release workflow). (r3 privilege split):
 - `hl-sampler.exe` (elevated): LibreHardwareMonitorLib only. It **pushes** JSON snapshot
   frames one way over a named pipe. The pipe ACL grants the current user only, and the
   sampler accepts no inbound commands (it ignores anything read from the pipe).
@@ -60,8 +64,9 @@ source. PawnIO (GPLv2+) is not bundled.
    - Numeric `float?` values only; null means "no reading" and never crashes anything.
    - Temperatures in °C from the library, not display strings.
    - Streams frames over the pipe. Nothing else: no HTTP, no file parsing, no config writes.
-2. **Loopback server** (`hardware-live.exe`, unelevated). `HttpListener` on
-   `http://127.0.0.1:<port>/`, enforcing invariant 2.
+2. **Loopback server** (`hardware-live.exe`, unelevated). **Kestrel** (ASP.NET Core minimal, no MVC) bound with
+   `Listen(IPAddress.Loopback, port)`. That avoids HTTP.sys URL ACLs/admin and never
+   touches `+`/`*` prefixes, enforcing invariant 2.
    - Keeps a 5-min ring buffer, session peaks, and a CSV session log (opt-in).
    - GET: `/api/snapshot`, `/api/meta` (hardware tree + roles), `/api/health`, static UI.
    - Token-guarded writes: `POST/PUT/DELETE /api/layouts[/{id}]`, `POST /api/layouts/import`.
