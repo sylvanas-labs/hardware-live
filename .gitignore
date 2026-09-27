@@ -1,0 +1,13 @@
+# Build output
+bin/
+obj/
+
+# Visual Studio and user-specific files
+.vs/
+*.user
+
+# Test output
+TestResults/
+
+# Repository-local .NET template cache used by the sandboxed build environment
+.dotnet-template-hive/
