@@ -80,9 +80,21 @@ $includeFps = $false
 if (Test-Path -LiteralPath $FetchPresentMonScript) {
     Write-PackageLog "running fetch-presentmon.ps1..."
     New-Item -ItemType Directory -Path $AppPresentMonDir -Force | Out-Null
-    & $FetchPresentMonScript -OutputDirectory $AppPresentMonDir
-    if ($LASTEXITCODE -and $LASTEXITCODE -ne 0) {
-        throw "fetch-presentmon.ps1 failed (exit $LASTEXITCODE); refusing to package an unverified FPS binary."
+    # $LASTEXITCODE is only ever set by a *native* command; under StrictMode -Version 2 it is
+    # genuinely undefined here if no native exe has run yet in this session, so guard the read
+    # rather than dereference it directly.
+    $fetchPresentMonExitCode = 0
+    try {
+        & $FetchPresentMonScript -OutputDirectory $AppPresentMonDir
+        if (Test-Path variable:LASTEXITCODE) {
+            $fetchPresentMonExitCode = $LASTEXITCODE
+        }
+    }
+    catch {
+        throw "fetch-presentmon.ps1 threw: $($_.Exception.Message)"
+    }
+    if ($fetchPresentMonExitCode -and $fetchPresentMonExitCode -ne 0) {
+        throw "fetch-presentmon.ps1 failed (exit $fetchPresentMonExitCode); refusing to package an unverified FPS binary."
     }
     $includeFps = $true
     Write-PackageLog "FPS: included (fetch-presentmon.ps1 ran successfully)."

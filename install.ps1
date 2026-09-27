@@ -58,8 +58,8 @@ else {
 }
 
 $ScriptRoot = Split-Path -Parent $PSCommandPath
-$ProgramFilesRoot = Join-Path $env:ProgramFiles 'HardwareLive'
-$ProgramDataRoot = Join-Path $env:ProgramData 'HardwareLive'
+$ProgramFilesRoot = Join-Path ([Environment]::GetFolderPath('ProgramFiles')) 'HardwareLive'
+$ProgramDataRoot = Join-Path ([Environment]::GetFolderPath('CommonApplicationData')) 'HardwareLive'
 $LogsDir = Join-Path $ProgramDataRoot 'logs'
 $InstallLogPath = Join-Path $LogsDir 'install.log'
 $InstallStatePath = Join-Path $ProgramDataRoot 'install-state.json'
@@ -68,6 +68,11 @@ $DefaultPort = 8790
 $PerfLogUsersSid = 'S-1-5-32-559'
 
 $script:LogLines = New-Object System.Collections.Generic.List[string]
+# Only set once Step 4 has verified/established a trusted, protected $ProgramDataRoot. Before
+# that, ProgramData's default (non-admin-writable-locked) ACL means an early elevated write
+# (e.g. a preflight-failure log) could land inside an attacker-writable tree -- see
+# Save-InstallLog below.
+$script:ProgramDataRootTrusted = $false
 
 function Write-InstallLog {
     param([string]$Message)
@@ -83,11 +88,22 @@ function Save-InstallLog {
         return
     }
 
-    try {
-        if (-not (Test-Path -LiteralPath $LogsDir)) {
-            New-Item -ItemType Directory -Path $LogsDir -Force | Out-Null
+    if (-not (Test-Path -LiteralPath $LogsDir)) {
+        if (-not $script:ProgramDataRootTrusted) {
+            Write-Host "WARN: install log not written to disk (no trusted $ProgramDataRoot yet). See console output above for the full log."
+            return
         }
 
+        try {
+            New-Item -ItemType Directory -Path $LogsDir -Force | Out-Null
+        }
+        catch {
+            Write-Host "WARN: could not create $LogsDir for the install log: $($_.Exception.Message)"
+            return
+        }
+    }
+
+    try {
         $content = ($script:LogLines -join [Environment]::NewLine) + [Environment]::NewLine
         [System.IO.File]::WriteAllText($InstallLogPath, $content, (New-Object System.Text.UTF8Encoding($false)))
     }
@@ -131,7 +147,11 @@ function Test-IsAdministrator {
 }
 
 # ---------------------------------------------------------------------------
-# Step 1: self-elevate, capturing the invoking (pre-elevation) user's SID first.
+# Step 1: self-elevate, capturing the invoking (pre-elevation) user's SID first. FPS consent
+# is also asked HERE, and -- if given -- %LOCALAPPDATA%\HardwareLive\config.json is written
+# HERE too, while this process is still genuinely unelevated (see the comment below). The
+# elevated phase (Step 6) never touches %LOCALAPPDATA%; it only records the consent decision
+# into admin-owned %ProgramData%\HardwareLive\install-state.json.
 # ---------------------------------------------------------------------------
 
 if (-not $Elevated) {
@@ -146,6 +166,58 @@ if (-not $Elevated) {
     }
 
     if (-not (Test-IsAdministrator)) {
+        $script:UnelevatedFpsConsentAsked = $false
+        $script:UnelevatedFpsConsentValue = $false
+
+        if ($EnableFps) {
+            $script:UnelevatedFpsConsentAsked = $true
+            $script:UnelevatedFpsConsentValue = $true
+        }
+        elseif ($NoFps) {
+            $script:UnelevatedFpsConsentAsked = $true
+            $script:UnelevatedFpsConsentValue = $false
+        }
+        elseif ($WhatIfPreference) {
+            Write-Host "WHATIF: would ask for FPS consent (not asked under -WhatIf)."
+        }
+        elseif ([Environment]::UserInteractive) {
+            Write-Host ''
+            Write-Host 'FPS capture (optional) needs the target user to be in "Performance Log Users".'
+            Write-Host 'That group lets the account start ETW trace sessions (used to read frame times via PresentMon).'
+            Write-Host 'It does not grant admin rights and is reversible on uninstall.'
+            $response = Read-Host 'Enable FPS capture and add this membership if needed? [y/N]'
+            $script:UnelevatedFpsConsentAsked = $true
+            $script:UnelevatedFpsConsentValue = ($response -match '^(?i:y|yes)$')
+        }
+        else {
+            $script:UnelevatedFpsConsentAsked = $true
+            $script:UnelevatedFpsConsentValue = $false
+        }
+
+        # Writing %LOCALAPPDATA%\HardwareLive\config.json from an elevated process would let a
+        # symlink/junction planted in that user-controlled folder redirect the write to an
+        # attacker-chosen target the elevated token can reach. This process is the invoking
+        # user, unelevated -- the one and only safe place to make this write directly.
+        if ($script:UnelevatedFpsConsentValue -and -not $WhatIfPreference) {
+            $userConfigPath = Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'HardwareLive\config.json'
+            $existingUserConfig = $null
+            if (Test-Path -LiteralPath $userConfigPath) {
+                try { $existingUserConfig = Get-Content -LiteralPath $userConfigPath -Raw | ConvertFrom-Json } catch { $existingUserConfig = $null }
+            }
+
+            # Nested merge, not a wholesale fps replacement: a future fps.pins/denylist
+            # living under the same "fps" key must survive a reinstall.
+            $existingFps = $null
+            if ($existingUserConfig -and ($existingUserConfig.PSObject.Properties.Name -contains 'fps')) {
+                $existingFps = $existingUserConfig.fps
+            }
+            $mergedFps = Merge-JsonObject -Existing $existingFps -Updates @{ enabled = $true }
+            $mergedConfig = Merge-JsonObject -Existing $existingUserConfig -Updates @{ fps = $mergedFps }
+            $json = $mergedConfig | ConvertTo-Json -Depth 10
+            Write-Utf8NoBom -Path $userConfigPath -Content $json
+            Write-Host "FPS capture enabled: wrote $userConfigPath"
+        }
+
         if ($WhatIfPreference) {
             # A -WhatIf run never elevates: it only prints what it would do, and every read
             # this script needs (registry, ACL, scheduled tasks) is readable unelevated.
@@ -160,8 +232,12 @@ if (-not $Elevated) {
             $argParts.Add('-File "' + $PSCommandPath + '"')
             $argParts.Add('-Elevated')
             $argParts.Add('-UserSid "' + $currentSid + '"')
-            if ($EnableFps) { $argParts.Add('-EnableFps') }
-            if ($NoFps) { $argParts.Add('-NoFps') }
+            if ($script:UnelevatedFpsConsentAsked -and $script:UnelevatedFpsConsentValue) {
+                $argParts.Add('-EnableFps')
+            }
+            elseif ($script:UnelevatedFpsConsentAsked) {
+                $argParts.Add('-NoFps')
+            }
             if ($null -ne $Port) { $argParts.Add("-Port $Port") }
 
             $process = Start-Process -FilePath 'powershell.exe' -ArgumentList ($argParts -join ' ') -Verb RunAs -Wait -PassThru
@@ -226,8 +302,8 @@ else {
 
 # 3. Edge present
 $edgePaths = @(
-    (Join-Path ${env:ProgramFiles} 'Microsoft\Edge\Application\msedge.exe'),
-    (Join-Path ${env:ProgramFiles(x86)} 'Microsoft\Edge\Application\msedge.exe')
+    (Join-Path ([Environment]::GetFolderPath('ProgramFiles')) 'Microsoft\Edge\Application\msedge.exe'),
+    (Join-Path ([Environment]::GetFolderPath('ProgramFilesX86')) 'Microsoft\Edge\Application\msedge.exe')
 )
 $edgeFound = $false
 foreach ($edgePath in $edgePaths) {
@@ -318,6 +394,10 @@ function Stop-HardwareLiveTasksAndProcesses {
 function Set-ProtectedAcl {
     param([Parameter(Mandatory = $true)][string]$Path)
 
+    $sidSystem = New-Object System.Security.Principal.SecurityIdentifier('S-1-5-18')
+    $sidAdmins = New-Object System.Security.Principal.SecurityIdentifier('S-1-5-32-544')
+    $sidUsers = New-Object System.Security.Principal.SecurityIdentifier('S-1-5-32-545')
+
     $items = @(Get-Item -LiteralPath $Path -Force) + @(Get-ChildItem -LiteralPath $Path -Recurse -Force -ErrorAction SilentlyContinue)
 
     foreach ($item in $items) {
@@ -337,12 +417,12 @@ function Set-ProtectedAcl {
         }
 
         $acl.SetAccessRuleProtection($true, $false)
-        $acl.SetOwner([System.Security.Principal.NTAccount]'BUILTIN\Administrators')
+        $acl.SetOwner($sidAdmins)
 
         $propagation = [System.Security.AccessControl.PropagationFlags]::None
-        $acl.AddAccessRule((New-Object System.Security.AccessControl.FileSystemAccessRule('NT AUTHORITY\SYSTEM', 'FullControl', $inheritanceFlags, $propagation, 'Allow')))
-        $acl.AddAccessRule((New-Object System.Security.AccessControl.FileSystemAccessRule('BUILTIN\Administrators', 'FullControl', $inheritanceFlags, $propagation, 'Allow')))
-        $acl.AddAccessRule((New-Object System.Security.AccessControl.FileSystemAccessRule('BUILTIN\Users', 'ReadAndExecute', $inheritanceFlags, $propagation, 'Allow')))
+        $acl.AddAccessRule((New-Object System.Security.AccessControl.FileSystemAccessRule($sidSystem, 'FullControl', $inheritanceFlags, $propagation, 'Allow')))
+        $acl.AddAccessRule((New-Object System.Security.AccessControl.FileSystemAccessRule($sidAdmins, 'FullControl', $inheritanceFlags, $propagation, 'Allow')))
+        $acl.AddAccessRule((New-Object System.Security.AccessControl.FileSystemAccessRule($sidUsers, 'ReadAndExecute', $inheritanceFlags, $propagation, 'Allow')))
 
         Set-Acl -LiteralPath $item.FullName -AclObject $acl
     }
@@ -355,16 +435,16 @@ function Test-ProtectedAclVerified {
 
     foreach ($item in $items) {
         $acl = Get-Acl -LiteralPath $item.FullName
-        $ownerOk = Test-AclOwnerIsAdmin -Owner $acl.Owner
-        if (-not $ownerOk) {
-            Write-InstallLog "ACL FAIL: $($item.FullName) owner is '$($acl.Owner)', expected an admin principal."
+        $ownerSid = $acl.GetOwner([System.Security.Principal.SecurityIdentifier]).Value
+        if (-not (Test-AclOwnerIsAdmin -OwnerSid $ownerSid)) {
+            Write-InstallLog "ACL FAIL: $($item.FullName) owner SID is '$ownerSid', expected an admin principal."
             return $false
         }
 
         $accessRules = @()
-        foreach ($rule in $acl.Access) {
+        foreach ($rule in $acl.GetAccessRules($true, $true, [System.Security.Principal.SecurityIdentifier])) {
             $accessRules += [pscustomobject]@{
-                IdentityReference  = $rule.IdentityReference.Value
+                IdentitySid        = $rule.IdentityReference.Value
                 AccessControlType  = $rule.AccessControlType.ToString()
                 FileSystemRights   = [int]$rule.FileSystemRights
             }
@@ -413,7 +493,15 @@ Invoke-GuardedAction -Description "set protected ACL on $ProgramFilesRoot (SYSTE
 
     if (-not (Test-ProtectedAclVerified -Path $ProgramFilesRoot)) {
         Write-InstallLog "FAIL: ACL verification failed after setting it. Rolling back the copy."
-        Remove-Item -LiteralPath $ProgramFilesRoot -Recurse -Force -ErrorAction SilentlyContinue
+        # Remove-ItemReparseSafe throws (a terminating error) on failure; -ErrorAction would not
+        # suppress that, so catch explicitly to guarantee Save-InstallLog and the intended
+        # "ACL verification failed" error still surface even if the rollback delete itself fails.
+        try {
+            Remove-ItemReparseSafe -Path $ProgramFilesRoot
+        }
+        catch {
+            Write-InstallLog "WARN: rollback delete of $ProgramFilesRoot failed: $($_.Exception.Message)"
+        }
         Save-InstallLog
         throw 'ACL verification failed; install rolled back.'
     }
@@ -426,29 +514,51 @@ Invoke-GuardedAction -Description "set protected ACL on $ProgramFilesRoot (SYSTE
 # ---------------------------------------------------------------------------
 
 Invoke-GuardedAction -Description "create $ProgramDataRoot and $LogsDir with a protected ACL" -Action {
-    # Tamper guard, checked and acted on BEFORE anything re-owns this tree: ProgramData's
-    # default ACL lets any user create files there (CREATOR OWNER FullControl), so a non-admin
-    # could plant install-state.json with perfLogUsersAddedByApp=true before install ever
-    # runs. Set-ProtectedAcl below re-owns everything to Administrators, which would make this
-    # exact planted file look trustworthy afterward -- so an untrusted file must be deleted
-    # here, first, while its real (non-admin) owner is still visible.
-    if (Test-Path -LiteralPath $InstallStatePath) {
-        $preHardenAcl = Get-Acl -LiteralPath $InstallStatePath
-        if (-not (Test-AclOwnerIsAdmin -Owner $preHardenAcl.Owner)) {
-            Write-InstallLog "WARN: $InstallStatePath is not admin-owned (owner: $($preHardenAcl.Owner)) before ACL hardening; deleting untrusted file rather than let it survive re-owning."
-            Remove-Item -LiteralPath $InstallStatePath -Force
+    if (Test-Path -LiteralPath $ProgramDataRoot) {
+        $rootIsTrusted = $false
+        try {
+            $rootIsTrusted = Test-DirectoryTrusted -Path $ProgramDataRoot
+        }
+        catch {
+            $rootIsTrusted = $false
+        }
+
+        if (-not $rootIsTrusted) {
+            # ProgramData's default ACL lets any user create files/folders there (CREATOR
+            # OWNER FullControl), so a non-admin could have planted this whole tree --
+            # including an install-state.json with perfLogUsersAddedByApp=true -- before
+            # install ever ran. Never re-own a pre-existing untrusted tree in place (that would
+            # make the planted content look trustworthy afterward); rename it aside instead.
+            $untrustedName = "HardwareLive.untrusted-{0}" -f (Get-Date -Format 'yyyyMMddHHmmssfff')
+            $untrustedPath = Join-Path (Split-Path -Parent $ProgramDataRoot) $untrustedName
+            Write-InstallLog "WARN: $ProgramDataRoot is not a trusted admin-owned/protected tree; renaming it aside to $untrustedPath rather than reusing or re-owning it."
+            try {
+                [System.IO.Directory]::Move($ProgramDataRoot, $untrustedPath)
+            }
+            catch {
+                Write-InstallLog "FAIL: could not rename aside the untrusted $ProgramDataRoot : $($_.Exception.Message)"
+                Save-InstallLog
+                throw "Could not rename aside untrusted $ProgramDataRoot; aborting rather than reuse it."
+            }
         }
     }
 
-    foreach ($dir in @($ProgramDataRoot, $LogsDir)) {
-        if (-not (Test-Path -LiteralPath $dir)) {
-            New-Item -ItemType Directory -Path $dir -Force | Out-Null
-        }
+    if (-not (Test-Path -LiteralPath $ProgramDataRoot)) {
+        # Atomic: the protected ACL is baked in at creation (DirectoryInfo.Create(security)),
+        # closing the create-then-Set-Acl window a planted junction/race could otherwise
+        # exploit at exactly this path.
+        New-ProtectedDirectoryAtomic -Path $ProgramDataRoot
+    }
+    $script:ProgramDataRootTrusted = $true
+
+    if (-not (Test-Path -LiteralPath $LogsDir)) {
+        # Created inside an already-protected, non-admin-writable parent: no equivalent race
+        # exists here.
+        New-Item -ItemType Directory -Path $LogsDir -Force | Out-Null
     }
 
-    # The root, not just logs\: ProgramData's default ACL lets any user create files there
-    # (CREATOR OWNER FullControl), so without protecting the root a non-admin user could plant
-    # install-state.json with perfLogUsersAddedByApp=true before install ever runs.
+    # Defense in depth: explicitly re-set owner+ACL on the whole tree (root + logs) regardless
+    # of which branch above ran, matching what verification below checks.
     Set-ProtectedAcl -Path $ProgramDataRoot
 
     if (-not (Test-ProtectedAclVerified -Path $ProgramDataRoot)) {
@@ -503,7 +613,13 @@ Invoke-GuardedAction -Description "register the HardwareLive\App task (Limited, 
 }
 
 # ---------------------------------------------------------------------------
-# Step 6: FPS consent (Performance Log Users)
+# Step 6: FPS consent record + Performance Log Users membership (elevated). The consent
+# decision itself, and the %LOCALAPPDATA%\HardwareLive\config.json write, happen in the
+# unelevated phase above (Step 1) on the normal (self-elevating) path. This block is reached
+# here only to (a) act on the forwarded -EnableFps/-NoFps decision, or (b) ask directly when
+# this process started already elevated (no relaunch -- Step 1's unelevated branch never ran).
+# Either way, this elevated process never writes %LOCALAPPDATA%; it only records the decision
+# into admin-owned install-state.json, which the app itself applies on first start.
 # ---------------------------------------------------------------------------
 
 function Test-PerfLogUsersMember {
@@ -511,20 +627,26 @@ function Test-PerfLogUsersMember {
 
     try {
         $member = Get-LocalGroupMember -SID $PerfLogUsersSid -ErrorAction Stop |
-            Where-Object { $_.Name -eq $AccountName -or $_.SID.Value -eq $UserSid }
+            Where-Object { $_.SID.Value -eq $UserSid }
         return $null -ne $member
     }
     catch {
         # Get-LocalGroupMember -SID can throw if the group holds an orphaned/unresolvable SID
-        # (a known 5.1 issue). Fall back to the ADSI WinNT provider.
+        # (a known 5.1 issue). Fall back to the ADSI WinNT provider, comparing by SID (never by
+        # display name, which can be renamed/localized/ambiguous across domain vs local).
         try {
             $groupNtAccount = (New-Object System.Security.Principal.SecurityIdentifier($PerfLogUsersSid)).Translate([System.Security.Principal.NTAccount]).Value.Split('\')[-1]
             $group = [ADSI]"WinNT://./$groupNtAccount,group"
-            $members = @($group.Invoke('Members')) | ForEach-Object {
-                ([ADSI]$_).InvokeGet('Name')
+            $isMember = $false
+            foreach ($memberComObject in @($group.Invoke('Members'))) {
+                $sidBytes = ([ADSI]$memberComObject).InvokeGet('objectSid')
+                $memberSid = (New-Object System.Security.Principal.SecurityIdentifier($sidBytes, 0)).Value
+                if ([string]::Equals($memberSid, $UserSid, [System.StringComparison]::OrdinalIgnoreCase)) {
+                    $isMember = $true
+                    break
+                }
             }
-            $shortName = $AccountName.Split('\')[-1]
-            return $members -contains $shortName
+            return $isMember
         }
         catch {
             Write-InstallLog "WARN: could not determine Performance Log Users membership: $($_.Exception.Message)"
@@ -567,12 +689,13 @@ elseif ($fpsConsent -and $alreadyMember) {
     Write-InstallLog "$targetAccountName is already a member of Performance Log Users; nothing to add."
 }
 
-# install-state.json: admin-owned in ProgramData, so the user can't tamper with the flag that
-# controls whether uninstall offers to remove a membership it didn't add.
+# install-state.json: admin-owned in ProgramData, so the user can't tamper with the flags that
+# control whether uninstall offers to remove a membership it didn't add.
 $existingState = $null
 if (Test-Path -LiteralPath $InstallStatePath) {
     $stateAcl = Get-Acl -LiteralPath $InstallStatePath
-    if (Test-AclOwnerIsAdmin -Owner $stateAcl.Owner) {
+    $stateOwnerSid = $stateAcl.GetOwner([System.Security.Principal.SecurityIdentifier]).Value
+    if (Test-AclOwnerIsAdmin -OwnerSid $stateOwnerSid) {
         try {
             $existingState = Get-Content -LiteralPath $InstallStatePath -Raw | ConvertFrom-Json
         }
@@ -581,7 +704,7 @@ if (Test-Path -LiteralPath $InstallStatePath) {
         }
     }
     else {
-        Write-InstallLog "WARN: $InstallStatePath is not admin-owned (owner: $($stateAcl.Owner)); treating as absent/tampered and overwriting."
+        Write-InstallLog "WARN: $InstallStatePath is not admin-owned (owner SID: $stateOwnerSid); treating as absent/tampered and overwriting."
     }
 }
 
@@ -590,12 +713,32 @@ if ($existingState -and ($existingState.PSObject.Properties.Name -contains 'perf
     $existingFlag = [bool]$existingState.perfLogUsersAddedByApp
 }
 
-$mergedFlag = Merge-PerfLogUsersAddedFlag -ExistingValue $existingFlag -AddedMembershipThisRun $addedThisRun -AlreadyMemberThisRun ($fpsConsent -and $alreadyMember)
+$existingSids = $null
+if ($existingState -and ($existingState.PSObject.Properties.Name -contains 'perfLogUsersAddedSids')) {
+    $existingSids = @($existingState.perfLogUsersAddedSids | ForEach-Object { [string]$_ })
+}
 
-Invoke-GuardedAction -Description "write $InstallStatePath (perfLogUsersAddedByApp=$mergedFlag)" -Action {
+$legacySid = $null
+if ($existingState -and ($existingState.PSObject.Properties.Name -contains 'perfLogUsersUserSid')) {
+    $legacySid = [string]$existingState.perfLogUsersUserSid
+}
+
+$addedSidThisRun = $null
+if ($addedThisRun) {
+    $addedSidThisRun = $UserSid
+}
+
+$mergedFlag = Merge-PerfLogUsersAddedFlag -ExistingValue $existingFlag -AddedMembershipThisRun $addedThisRun -AlreadyMemberThisRun ($fpsConsent -and $alreadyMember)
+$mergedSids = Resolve-PerfLogUsersAddedSids -ExistingSids $existingSids -AddedSidThisRun $addedSidThisRun -LegacyAddedByApp $existingFlag -LegacySid $legacySid
+
+Invoke-GuardedAction -Description "write $InstallStatePath (perfLogUsersAddedByApp=$mergedFlag, perfLogUsersAddedSids=$(@($mergedSids).Count) SID(s), fpsConsent=$fpsConsent)" -Action {
     $stateUpdates = @{
         perfLogUsersAddedByApp = $mergedFlag
+        perfLogUsersAddedSids  = @($mergedSids)
+        # Kept for back-compat readers only; perfLogUsersAddedSids (monotonic union) is what
+        # uninstall actually acts on now -- this scalar is no longer trusted for removal.
         perfLogUsersUserSid    = $UserSid
+        fpsConsent             = $fpsConsent
         lastInstallUtc         = (Get-Date).ToUniversalTime().ToString('o')
     }
     $mergedState = Merge-JsonObject -Existing $existingState -Updates $stateUpdates
@@ -605,34 +748,7 @@ Invoke-GuardedAction -Description "write $InstallStatePath (perfLogUsersAddedByA
 }
 
 if ($fpsConsent) {
-    $profilePath = Get-ProfileImagePathFromRegistry -Sid $UserSid
-    if ($profilePath) {
-        $localAppData = Resolve-LocalAppDataFromProfilePath -ProfilePath $profilePath
-        $userConfigPath = Join-Path $localAppData 'HardwareLive\config.json'
-
-        Invoke-GuardedAction -Description "set fps.enabled=true in $userConfigPath" -Action {
-            $existingUserConfig = $null
-            if (Test-Path -LiteralPath $userConfigPath) {
-                try { $existingUserConfig = Get-Content -LiteralPath $userConfigPath -Raw | ConvertFrom-Json } catch { $existingUserConfig = $null }
-            }
-
-            # Nested merge, not a wholesale fps replacement: a future fps.pins/denylist
-            # (step 7) living under the same "fps" key must survive a reinstall.
-            $existingFps = $null
-            if ($existingUserConfig -and ($existingUserConfig.PSObject.Properties.Name -contains 'fps')) {
-                $existingFps = $existingUserConfig.fps
-            }
-            $mergedFps = Merge-JsonObject -Existing $existingFps -Updates @{ enabled = $true }
-
-            $updates = @{ fps = $mergedFps }
-            $mergedConfig = Merge-JsonObject -Existing $existingUserConfig -Updates $updates
-            $json = $mergedConfig | ConvertTo-Json -Depth 10
-            Write-Utf8NoBom -Path $userConfigPath -Content $json
-        }
-    }
-    else {
-        Write-InstallLog "WARN: could not resolve a profile path for $UserSid; fps.enabled not written to config.json (the app will still prompt for it once the profile exists)."
-    }
+    Write-InstallLog "FPS consent recorded. If %LOCALAPPDATA%\HardwareLive\config.json wasn't already written directly (only possible from the unelevated pre-UAC phase), Hardware Live will enable FPS capture automatically the first time the app starts."
 }
 
 # ---------------------------------------------------------------------------

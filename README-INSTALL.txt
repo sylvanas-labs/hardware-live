@@ -1,6 +1,17 @@
 Hardware Live -- install instructions
 ======================================
 
+0. Extract this zip only into a folder you control (e.g. your own Downloads or a folder under
+   your user profile) -- never into a shared/world-writable folder like C:\Temp or a network
+   share, and never over top of an existing extraction owned by someone else. Then verify the
+   download before running anything:
+     Get-FileHash .\HardwareLive-<ver>-win-x64.zip -Algorithm SHA256
+   or, if Get-FileHash is unavailable (see "Known gotchas" in RUNBOOK.md):
+     certutil -hashfile .\HardwareLive-<ver>-win-x64.zip SHA256
+   Compare the result against the SHA-256 published alongside the release (also included as
+   SHA256SUMS.txt inside the zip, covering every extracted file). Do not run install.ps1 if it
+   doesn't match.
+
 1. Extract this zip anywhere (e.g. your Downloads folder or Desktop).
 
 2. Windows blocks scripts downloaded from the internet by default (every file in this zip is

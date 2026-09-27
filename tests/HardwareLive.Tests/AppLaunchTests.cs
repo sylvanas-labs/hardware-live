@@ -139,6 +139,135 @@ public sealed class AppLaunchTests
         }
     }
 
+    // --- AppStartupConfig.ApplyFpsConsentFromInstallState -----------------------------------
+    // docs/SPEC.md installer security fix: an elevated install.ps1 run can't safely write
+    // %LOCALAPPDATA% directly, so it records fpsConsent in install-state.json and the app
+    // (which always runs unelevated) applies it here on first start.
+
+    private static string TempJsonPath() => Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".json");
+
+    [Fact]
+    public void FpsConsentTrueAndNoExistingFpsKeyWritesEnabledToPerUserPath()
+    {
+        var installStatePath = TempJsonPath();
+        var resolvedConfigPath = TempJsonPath(); // does not exist: simulates app-base fallback
+        var perUserConfigPath = TempJsonPath();
+        File.WriteAllText(installStatePath, "{\"fpsConsent\":true}");
+
+        try
+        {
+            AppStartupConfig.ApplyFpsConsentFromInstallState(installStatePath, resolvedConfigPath, perUserConfigPath);
+
+            Assert.True(File.Exists(perUserConfigPath));
+            var written = File.ReadAllText(perUserConfigPath);
+            Assert.Contains("\"enabled\":true", written);
+        }
+        finally
+        {
+            File.Delete(installStatePath);
+            File.Delete(perUserConfigPath);
+        }
+    }
+
+    [Fact]
+    public void FpsConsentTruePreservesUnrelatedExistingKeys()
+    {
+        var installStatePath = TempJsonPath();
+        var resolvedConfigPath = TempJsonPath();
+        var perUserConfigPath = TempJsonPath();
+        File.WriteAllText(installStatePath, "{\"fpsConsent\":true}");
+        File.WriteAllText(resolvedConfigPath, "{\"port\":9001,\"customKey\":\"keepme\"}");
+
+        try
+        {
+            AppStartupConfig.ApplyFpsConsentFromInstallState(installStatePath, resolvedConfigPath, perUserConfigPath);
+
+            var written = File.ReadAllText(perUserConfigPath);
+            Assert.Contains("\"port\":9001", written);
+            Assert.Contains("\"customKey\":\"keepme\"", written);
+            Assert.Contains("\"enabled\":true", written);
+        }
+        finally
+        {
+            File.Delete(installStatePath);
+            File.Delete(resolvedConfigPath);
+            File.Delete(perUserConfigPath);
+        }
+    }
+
+    [Theory]
+    [InlineData("{\"fps\":{\"enabled\":true}}")]
+    [InlineData("{\"fps\":{\"enabled\":false}}")]
+    public void ExistingFpsEnabledKeyIsNeverOverwritten(string existingConfigJson)
+    {
+        var installStatePath = TempJsonPath();
+        var resolvedConfigPath = TempJsonPath();
+        var perUserConfigPath = TempJsonPath();
+        File.WriteAllText(installStatePath, "{\"fpsConsent\":true}");
+        File.WriteAllText(resolvedConfigPath, existingConfigJson);
+
+        try
+        {
+            AppStartupConfig.ApplyFpsConsentFromInstallState(installStatePath, resolvedConfigPath, perUserConfigPath);
+
+            Assert.False(File.Exists(perUserConfigPath));
+        }
+        finally
+        {
+            File.Delete(installStatePath);
+            File.Delete(resolvedConfigPath);
+        }
+    }
+
+    [Fact]
+    public void FpsConsentFalseIsNoOp()
+    {
+        var installStatePath = TempJsonPath();
+        var perUserConfigPath = TempJsonPath();
+        File.WriteAllText(installStatePath, "{\"fpsConsent\":false}");
+
+        try
+        {
+            AppStartupConfig.ApplyFpsConsentFromInstallState(installStatePath, TempJsonPath(), perUserConfigPath);
+
+            Assert.False(File.Exists(perUserConfigPath));
+        }
+        finally
+        {
+            File.Delete(installStatePath);
+        }
+    }
+
+    [Fact]
+    public void MissingInstallStateIsNoOp()
+    {
+        var installStatePath = TempJsonPath(); // never created
+        var perUserConfigPath = TempJsonPath();
+
+        AppStartupConfig.ApplyFpsConsentFromInstallState(installStatePath, TempJsonPath(), perUserConfigPath);
+
+        Assert.False(File.Exists(perUserConfigPath));
+    }
+
+    [Fact]
+    public void MalformedInstallStateIsNoOp()
+    {
+        var installStatePath = TempJsonPath();
+        var perUserConfigPath = TempJsonPath();
+        File.WriteAllText(installStatePath, "{not valid json");
+
+        try
+        {
+            AppStartupConfig.ApplyFpsConsentFromInstallState(installStatePath, TempJsonPath(), perUserConfigPath);
+
+            Assert.False(File.Exists(perUserConfigPath));
+        }
+        finally
+        {
+            File.Delete(installStatePath);
+        }
+    }
+
     [Fact]
     public void SingleInstanceGuardFirstAcquireIsPrimary()
     {

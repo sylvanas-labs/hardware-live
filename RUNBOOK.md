@@ -70,6 +70,37 @@ Worst case: run `uninstall.ps1`, then reinstall from a known-good package. `inst
 itself rolls back its own ACL step (deletes the just-copied `Program Files\HardwareLive` tree)
 if ACL verification fails, so a partial/corrupt ACL state should never be left behind.
 
+## Security notes (installer hardening, 2026-09-27)
+
+- **Verify before you run anything.** Extract the release zip only into a folder you control
+  (your own Downloads/profile, never a shared/world-writable path), then check
+  `SHA256SUMS.txt` / the published zip hash before running `install.ps1`. See
+  README-INSTALL.txt step 0.
+- **Elevated code never touches `%LOCALAPPDATA%`.** The FPS consent question and the
+  `%LOCALAPPDATA%\HardwareLive\config.json` write both happen in the unelevated phase of
+  `install.ps1`/`uninstall.ps1`, before any UAC relaunch -- never after. If a process starts
+  already elevated (no relaunch), it records the decision in admin-owned
+  `install-state.json` (`fpsConsent`) instead, and `HardwareLive.App`'s
+  `AppStartupConfig.ApplyFpsConsentFromInstallState` applies it unelevated on first app start.
+- **`%ProgramData%\HardwareLive` trust check.** `install.ps1` refuses to reuse a pre-existing
+  `%ProgramData%\HardwareLive` unless it's a reparse-point-free, protection-locked, admin-owned
+  tree (`Test-DirectoryTrusted`); otherwise it renames it aside
+  (`HardwareLive.untrusted-<timestamp>`) and creates a fresh one atomically
+  (`New-ProtectedDirectoryAtomic`, ACL baked in at `DirectoryInfo.Create(security)` -- no
+  create-then-Set-Acl race window).
+- **Reparse-safe deletes everywhere.** `Remove-ItemReparseSafe` (InstallLib) walks
+  depth-first and deletes a junction/symlink as the link object itself, never following it;
+  the root being a reparse point is refused outright. Used for Program Files, ProgramData, and
+  `%LOCALAPPDATA%` removal in `uninstall.ps1`.
+- **Performance Log Users membership tracked per-SID.** `perfLogUsersAddedSids` (monotonic
+  union, `Resolve-PerfLogUsersAddedSids`) replaces the old single-SID scalar for removal
+  purposes; uninstall only removes SIDs in that list, and only from a trusted (admin-owned,
+  non-reparse) `install-state.json` -- never falls back to the elevated identity running
+  uninstall itself.
+- **SID-based trust everywhere**, not display names (`Test-AclOwnerIsAdmin`,
+  `Test-AclHasDisallowedWrite`, ADSI group membership checks) -- a display name can be
+  localized, renamed, or ambiguous; a well-known SID cannot.
+
 ## Known gotchas
 
 - **PawnIO**: never auto-installed; preflight WARNs with the exact `winget install

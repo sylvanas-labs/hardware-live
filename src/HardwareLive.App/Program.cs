@@ -6,6 +6,16 @@ using HardwareLive.Core.Profiles;
 // Program Files is read-only); the app-base-directory file is a backward-compatible
 // fallback for installs that predate this location.
 var configPath = ConfigPaths.Resolve(AppContext.BaseDirectory);
+
+// Installer security fix: an elevated install.ps1 run never writes %LOCALAPPDATA% directly (see
+// AppStartupConfig.ApplyFpsConsentFromInstallState). If it recorded fpsConsent=true in
+// install-state.json instead, apply it to the per-user config now, unelevated, on first start.
+var installStatePath = Path.Combine(
+    Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "HardwareLive", "install-state.json");
+var perUserConfigPath = Path.Combine(
+    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "HardwareLive", "config.json");
+AppStartupConfig.ApplyFpsConsentFromInstallState(installStatePath, configPath, perUserConfigPath);
+
 var parsedArgs = AppArguments.Parse(args);
 
 // Reopen path (docs/SPEC.md Component 8 step 5): a second launch never starts a second
