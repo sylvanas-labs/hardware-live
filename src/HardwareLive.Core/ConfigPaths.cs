@@ -10,10 +10,13 @@ namespace HardwareLive.Core;
 /// </summary>
 public static class ConfigPaths
 {
-    public static string Resolve(string appBaseDirectory)
+    /// <param name="perUserDirectory">Overrides <c>%LOCALAPPDATA%\HardwareLive</c> so tests
+    /// never depend on whether this machine has Hardware Live installed.</param>
+    public static string Resolve(string appBaseDirectory, string? perUserDirectory = null)
     {
-        var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-        var perUserPath = Path.Combine(localAppData, "HardwareLive", "config.json");
+        var perUserPath = Path.Combine(
+            perUserDirectory ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "HardwareLive"),
+            "config.json");
         if (File.Exists(perUserPath))
         {
             return perUserPath;

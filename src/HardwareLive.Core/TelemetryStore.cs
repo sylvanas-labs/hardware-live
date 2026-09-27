@@ -19,6 +19,10 @@ public interface ITelemetrySource
 
     bool HasSamplerIdentityMismatch { get; }
 
+    /// <summary>Which identity check failed (null when unknown or no mismatch); surfaced in
+    /// /api/health's reason because the installed app has no log file.</summary>
+    string? SamplerIdentityMismatchDetail { get; }
+
     TelemetrySnapshot GetSnapshot(IReadOnlyCollection<string>? sensorIds = null);
 }
 
@@ -49,6 +53,7 @@ public sealed class TelemetryStore : ITelemetrySource
     private int _windowLength;
     private DateTimeOffset? _lastFrameTime;
     private bool _samplerIdentityMismatch;
+    private string? _samplerIdentityMismatchDetail;
 
     public TelemetryStore(TimeProvider? clock = null)
     {
@@ -89,6 +94,17 @@ public sealed class TelemetryStore : ITelemetrySource
             lock (_sync)
             {
                 return _samplerIdentityMismatch;
+            }
+        }
+    }
+
+    public string? SamplerIdentityMismatchDetail
+    {
+        get
+        {
+            lock (_sync)
+            {
+                return _samplerIdentityMismatch ? _samplerIdentityMismatchDetail : null;
             }
         }
     }
@@ -142,6 +158,7 @@ public sealed class TelemetryStore : ITelemetrySource
             _latestFrame = frame;
             _lastFrameTime = _clock.GetUtcNow();
             _samplerIdentityMismatch = false;
+            _samplerIdentityMismatchDetail = null;
 
             var frameValues = new Dictionary<string, float?>(frame.Sensors.Count, StringComparer.Ordinal);
             var frameIds = new HashSet<string>(frame.Sensors.Count, StringComparer.Ordinal);
@@ -172,11 +189,12 @@ public sealed class TelemetryStore : ITelemetrySource
         }
     }
 
-    public void SetSamplerIdentityMismatch(bool mismatch)
+    public void SetSamplerIdentityMismatch(bool mismatch, string? detail = null)
     {
         lock (_sync)
         {
             _samplerIdentityMismatch = mismatch;
+            _samplerIdentityMismatchDetail = mismatch ? detail : null;
         }
     }
 

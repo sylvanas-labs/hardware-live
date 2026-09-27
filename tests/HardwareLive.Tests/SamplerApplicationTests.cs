@@ -16,12 +16,15 @@ public sealed class SamplerApplicationTests
     [Fact]
     public async Task ServeModeWithoutSystemIdentityIsRejectedWithExitCodeFour()
     {
+        var granted = false;
         var exitCode = await SamplerApplication.RunAsync(
             ["--user-sid", ValidUserSid],
             isSystemIdentity: () => false,
-            createSampler: () => new FakeSampler());
+            createSampler: () => new FakeSampler(),
+            grantProcessQuery: _ => granted = true);
 
         Assert.Equal(4, exitCode);
+        Assert.False(granted);
     }
 
     [Fact]
@@ -37,13 +40,37 @@ public sealed class SamplerApplicationTests
         using var cts = new CancellationTokenSource();
         cts.Cancel();
 
+        SecurityIdentifier? grantedTo = null;
         var exitCode = await SamplerApplication.RunAsync(
             ["--user-sid", currentUserSid],
             cts.Token,
             isSystemIdentity: () => true,
-            createSampler: () => new FakeSampler());
+            createSampler: () => new FakeSampler(),
+            grantProcessQuery: sid => grantedTo = sid);
 
         Assert.Equal(0, exitCode);
+        // The unelevated app can only verify the SYSTEM sampler's image path if serve mode
+        // grants the target user PROCESS_QUERY_LIMITED_INFORMATION on the sampler process.
+        Assert.Equal(new SecurityIdentifier(currentUserSid), grantedTo);
+    }
+
+    [Fact]
+    public void GrantQueryLimitedInformationAppendsOneNarrowAceAndKeepsTheExistingDacl()
+    {
+        // Real round-trip on this test process's own DACL (harmless: it dies with the
+        // process). A SID nobody holds, so the ACE is distinguishable from existing ones.
+        var testSid = new SecurityIdentifier("S-1-5-21-1111111111-2222222222-3333333333-4242");
+        var currentUser = WindowsIdentity.GetCurrent().User!;
+        var system = new SecurityIdentifier(WellKnownSidType.LocalSystemSid, domainSid: null);
+        var systemBefore = SamplerProcessSecurity.GetAllowMasksFor(system);
+        var userBefore = SamplerProcessSecurity.GetAllowMasksFor(currentUser);
+        Assert.Empty(SamplerProcessSecurity.GetAllowMasksFor(testSid));
+
+        SamplerProcessSecurity.GrantQueryLimitedInformation(testSid);
+
+        Assert.Equal([SamplerProcessSecurity.ProcessQueryLimitedInformation], SamplerProcessSecurity.GetAllowMasksFor(testSid));
+        Assert.Equal(systemBefore, SamplerProcessSecurity.GetAllowMasksFor(system));
+        Assert.Equal(userBefore, SamplerProcessSecurity.GetAllowMasksFor(currentUser));
     }
 
     [Fact]

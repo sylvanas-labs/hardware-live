@@ -62,10 +62,20 @@ public sealed class SamplerClient
                 await using var pipe = CreateClient(_pipeName);
                 await pipe.ConnectAsync(1000, cancellationToken);
 
-                if (!_verifier.HasExpectedOwner(pipe) || !_verifier.IsExpectedServer(pipe, _expectedSamplerPath))
+                string? failure = null;
+                if (!_verifier.HasExpectedOwner(pipe))
                 {
-                    _store.SetSamplerIdentityMismatch(true);
-                    _log("sampler identity mismatch");
+                    failure = "pipe owner is not Administrators or SYSTEM";
+                }
+                else if (!_verifier.TryVerifyServer(pipe, _expectedSamplerPath, out var serverFailure))
+                {
+                    failure = serverFailure ?? "sampler process image check failed";
+                }
+
+                if (failure is not null)
+                {
+                    _store.SetSamplerIdentityMismatch(true, failure);
+                    _log($"sampler identity mismatch: {failure}");
                 }
                 else
                 {

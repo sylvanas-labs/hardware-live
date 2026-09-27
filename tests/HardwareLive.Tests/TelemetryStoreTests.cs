@@ -92,6 +92,23 @@ public sealed class TelemetryStoreTests
     }
 
     [Fact]
+    public void IdentityMismatchDetailIsReportedUntilCleared()
+    {
+        var store = new TelemetryStore();
+        store.SetSamplerIdentityMismatch(true, "could not open the sampler process (error 5)");
+        Assert.True(store.HasSamplerIdentityMismatch);
+        Assert.Equal("could not open the sampler process (error 5)", store.SamplerIdentityMismatchDetail);
+
+        store.Add(Frame(1, 42));
+        Assert.False(store.HasSamplerIdentityMismatch);
+        Assert.Null(store.SamplerIdentityMismatchDetail);
+
+        store.SetSamplerIdentityMismatch(true, "x");
+        store.SetSamplerIdentityMismatch(false, "ignored");
+        Assert.Null(store.SamplerIdentityMismatchDetail);
+    }
+
+    [Fact]
     public void StaleUsesInjectedArrivalClock()
     {
         var clock = new ManualTimeProvider(new DateTimeOffset(2026, 9, 27, 0, 0, 0, TimeSpan.Zero));

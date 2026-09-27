@@ -10,9 +10,11 @@ public static class SamplerApplication
         IReadOnlyList<string> args,
         CancellationToken cancellationToken = default,
         Func<bool>? isSystemIdentity = null,
-        Func<ISensorFrameSampler>? createSampler = null)
+        Func<ISensorFrameSampler>? createSampler = null,
+        Action<SecurityIdentifier>? grantProcessQuery = null)
     {
         isSystemIdentity ??= DefaultIsSystemIdentity;
+        grantProcessQuery ??= SamplerProcessSecurity.GrantQueryLimitedInformation;
         createSampler ??= static () => new HardwareSensorSampler();
 
         var command = SamplerCommand.Parse(args);
@@ -53,6 +55,14 @@ public static class SamplerApplication
             }
 
             var user = command.UserSid ?? throw new InvalidOperationException("Serve mode requires a validated --user-sid.");
+            // Before the pipe exists, so the app can never connect ahead of the grant and
+            // fail its image-path check (see SamplerProcessSecurity). A dev non-SYSTEM run
+            // is already the user's own process and needs no grant.
+            if (!command.DevAllowNonSystem)
+            {
+                grantProcessQuery(user);
+            }
+
             var service = new SamplerService(sampler, user);
             return await service.RunAsync(cancellationToken);
         }

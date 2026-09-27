@@ -272,7 +272,9 @@ internal sealed class RequestRouter
         string reason;
         if (_telemetry.HasSamplerIdentityMismatch)
         {
-            reason = "sampler identity mismatch";
+            reason = _telemetry.SamplerIdentityMismatchDetail is { } detail
+                ? $"sampler identity mismatch: {detail}"
+                : "sampler identity mismatch";
         }
         else if (_telemetry.LatestFrame is null)
         {

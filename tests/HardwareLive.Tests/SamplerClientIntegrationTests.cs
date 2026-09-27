@@ -74,7 +74,9 @@ public sealed class SamplerClientIntegrationTests
 
             Assert.Null(store.LatestFrame);
             Assert.Equal("UNKNOWN", health.RootElement.GetProperty("status").GetString());
-            Assert.Equal("sampler identity mismatch", health.RootElement.GetProperty("reason").GetString());
+            Assert.Equal(
+                "sampler identity mismatch: pipe owner is not Administrators or SYSTEM",
+                health.RootElement.GetProperty("reason").GetString());
         }
         finally
         {
