@@ -275,6 +275,10 @@ a, button, input, [tabindex] { color: inherit; }
 .tile.level-critical .tile-value, .tile-status.level-critical { color: var(--critical); }
 .tile.disconnected { opacity: .55; }
 
+/* fps.app tile (docs/SPEC.md step7-fps item 7): "not tracking?" / "pin this app" actions. */
+.fps-app-tile .tile-actions { display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
+.fps-app-tile .tile-actions .btn { font-size: 11px; padding: 2px 6px; }
+
 .chart-title {
   margin: 0 0 4px;
   font-size: 13px;

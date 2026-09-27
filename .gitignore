@@ -11,3 +11,8 @@ TestResults/
 
 # Repository-local .NET template cache used by the sandboxed build environment
 .dotnet-template-hive/
+
+# Fetched at build/install time by tools/fetch-presentmon.ps1 (docs/SPEC.md step7-fps): the
+# pinned, hash-verified PresentMon release asset. Never committed.
+third_party/
+__pycache__/

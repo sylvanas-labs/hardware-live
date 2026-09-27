@@ -3,11 +3,10 @@
 Full spec: [docs/SPEC.md](docs/SPEC.md) (APPROVED r4).
 
 ## Now
-- [ ] Next: Soon step 1 (FPS via PresentMon v2.6.0 + 3D Gaming preset wiring)
+- [ ] Next: Soon step 1 (`install.ps1`/`uninstall.ps1`)
 
 ## Soon (in order)
-1. FPS via PresentMon v2.6.0 (unelevated, Performance Log Users opt-in) + 3D Gaming preset wiring
-2. `install.ps1`/`uninstall.ps1`, with these requirements:
+1. `install.ps1`/`uninstall.ps1`, with these requirements:
    - Install to `Program Files\HardwareLive\{app,sampler}\`, kept as separate folders.
    - `HL-Sampler` task runs as **SYSTEM** with `--user-sid`; `HL-App` task runs unelevated.
    - Launcher opens `http://127.0.0.1:<port>`, not `localhost` (the server binds IPv4 loopback only).
@@ -21,6 +20,23 @@ Full spec: [docs/SPEC.md](docs/SPEC.md) (APPROVED r4).
 - Light theme polish, CSV export of a session, alert sounds
 
 ## Done
+- 2026-09-27 FPS via PresentMon v2.6.0 complete (step 7): `tools/fetch-presentmon.ps1`
+  (pinned hash/size verify, PS5.1-safe, ASCII-only) + conditional App-csproj copy;
+  `Core/Fps/` header-driven CSV parser, bounded per-PID rolling aggregator (exact
+  fps.avg/frametime.ms/jitter/low1 formulas), Win32-injectable target selector (r4.1
+  fullscreen+20fps x3+denylist+session rules), PresentMon process runner (pinned SHA-256
+  gate, Job Object KILL_ON_JOB_CLOSE, restart backoff 2s/5s/10s -> unavailable after 3
+  failures, access-denied -> needs-permission with no restart loop), lenient `fps` config.json
+  section with atomic unknown-key-preserving writes; synthetic `/fps/*` sensors wired through
+  the classifier/telemetry/health/snapshot pipeline (`fps.app` as a snapshot string field, not
+  a sensor), `/api/health` FPS-only INFO concern (never WATCH/CRITICAL), `PUT /api/settings`
+  `fpsEnabled`/`fpsDenylistAdd`/`fpsPin` extensions; 3D Gaming preset's fps.app tile gets
+  "not tracking?"/"pin this app" actions and a disabled-state banner with an Enable button.
+  Independent Python oracle (`tests/oracle/fps_oracle.py` + `make_synthetic_game.py` +
+  committed `synthetic-game-60s.expected.json`) matches the C# aggregator on every bucket.
+  47 new C# tests + 2 new `tests/ui/logic.test.mjs` tests. Not done: `install.ps1`
+  Performance Log Users membership/consent flow (step 2's scope) and the permission
+  round-trip acceptance tests that depend on it.
 - 2026-09-27 Presets complete (step 6): compiled Overview/CPU/GPU/3D Gaming/Thermals/
   Cooling/Storage presets, atomic `%LOCALAPPDATA%\HardwareLive\layouts.json` custom-layout
   persistence and recovery, active preset + °C/°F settings, custom CRUD/fork/export/import,

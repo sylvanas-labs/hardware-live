@@ -12,4 +12,21 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   </PropertyGroup>
 
+  <!-- PresentMon (docs/SPEC.md step7-fps): tools/fetch-presentmon.ps1 downloads the pinned,
+       hash-verified release asset to third_party/presentmon/ (gitignored, never committed).
+       Copied to output only when present, so the build succeeds without it too; FPS then
+       reports "not installed" at runtime instead of failing to build. -->
+  <ItemGroup>
+    <None Include="..\..\third_party\presentmon\PresentMon-2.6.0-x64.exe"
+          Condition="Exists('..\..\third_party\presentmon\PresentMon-2.6.0-x64.exe')">
+      <Link>presentmon\PresentMon-2.6.0-x64.exe</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="..\..\third_party\presentmon\LICENSE.txt"
+          Condition="Exists('..\..\third_party\presentmon\LICENSE.txt')">
+      <Link>presentmon\LICENSE.txt</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
 </Project>

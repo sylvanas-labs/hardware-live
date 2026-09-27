@@ -5,6 +5,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using HardwareLive.Core.Analysis;
 using HardwareLive.Core.Classification;
+using HardwareLive.Core.Fps;
 using HardwareLive.Core.Profiles;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.WebUtilities;
@@ -23,6 +24,18 @@ internal sealed class RequestRouter
     private readonly TimeProvider _clock;
     private readonly DateTimeOffset _createdAt;
     private readonly string _notesPath;
+    private readonly IFpsController _fps;
+
+    private sealed class DisabledFpsController : IFpsController
+    {
+        public FpsSnapshotInfo Current => FpsSnapshotInfo.Disabled;
+
+        public void SetEnabled(bool enabled) { }
+
+        public void AddToDenylist(string processName) { }
+
+        public void SetPinnedProcess(string? processName) { }
+    }
 
     private static JsonSerializerOptions CreateJsonOptions()
     {
@@ -39,7 +52,8 @@ internal sealed class RequestRouter
         UserThresholdConfig? thresholdConfig = null,
         TimeProvider? clock = null,
         DateTimeOffset? createdAt = null,
-        string? notesPath = null)
+        string? notesPath = null,
+        IFpsController? fps = null)
     {
         _token = token;
         _tokenText = tokenText;
@@ -49,6 +63,7 @@ internal sealed class RequestRouter
         _clock = clock ?? TimeProvider.System;
         _createdAt = createdAt ?? _clock.GetUtcNow();
         _notesPath = notesPath ?? ConfigPaths.ResolveNotesPath();
+        _fps = fps ?? new DisabledFpsController();
     }
 
     public async Task HandleAsync(HttpContext context)
@@ -286,6 +301,7 @@ internal sealed class RequestRouter
                 var snapshot = _telemetry.GetSnapshot(sensorIds);
                 var thresholds = ThresholdResolver.Resolve(frame, classification, _thresholdConfig);
                 var result = HealthAnalyzer.Analyze(snapshot, classification, thresholds, _thresholdConfig.Invalid);
+                result = WithFpsConcern(result);
                 var unit = _layouts.GetSettings().TemperatureUnit ?? "C";
                 await WriteJson(context, HealthResponsePresenter.Present(
                     result,
@@ -303,6 +319,31 @@ internal sealed class RequestRouter
             concerns = HealthResponsePresenter.RecoveryConcerns(_layouts.SavedLayoutsCouldNotBeRead),
             uptimeSeconds,
         });
+    }
+
+    /// <summary>Appends an informational-only concern when FPS is enabled but not usable
+    /// (docs/SPEC.md step7-fps item 6): FPS must never raise WATCH/CRITICAL, so this runs
+    /// after <see cref="HealthAnalyzer.Analyze"/> has already fixed <c>Status</c>.</summary>
+    private AnalysisResult WithFpsConcern(AnalysisResult result)
+    {
+        var fps = _fps.Current;
+        var message = fps.Status switch
+        {
+            FpsStatus.NeedsPermission => "FPS needs permission: add this user to the Performance Log Users group",
+            FpsStatus.NotInstalled => "FPS unavailable: PresentMon is not installed",
+            FpsStatus.IntegrityFailed => "FPS unavailable: PresentMon failed its integrity check",
+            FpsStatus.UnexpectedOutput => "FPS unavailable: unexpected PresentMon output",
+            FpsStatus.Unavailable => "FPS unavailable",
+            _ => null,
+        };
+
+        if (message is null)
+        {
+            return result;
+        }
+
+        var concern = new Concern(ConcernLevel.Info, "fps.status", string.Empty, message);
+        return result with { Concerns = [.. result.Concerns, concern] };
     }
 
     private async Task HandleSnapshot(HttpContext context)
@@ -326,6 +367,7 @@ internal sealed class RequestRouter
 
         var snapshot = _telemetry.GetSnapshot(requestedIds);
         var frame = snapshot.LatestFrame;
+        var fps = _fps.Current;
         await WriteJson(context, new
         {
             timestampUnixMs = frame?.TimestampUnixMs,
@@ -333,6 +375,7 @@ internal sealed class RequestRouter
             stale = snapshot.Stale,
             sensors = frame?.Sensors.Select(sensor => new { sensor.Id, sensor.Value }) ?? [],
             history = snapshot.History,
+            fps = new { status = fps.Status, app = fps.App, pid = fps.Pid },
         });
     }
 
@@ -505,7 +548,13 @@ internal sealed class RequestRouter
     {
         if (HttpMethods.IsGet(context.Request.Method))
         {
-            await WriteJson(context, _layouts.GetSettings());
+            var currentSettings = _layouts.GetSettings();
+            await WriteJson(context, new
+            {
+                currentSettings.ActivePresetId,
+                currentSettings.TemperatureUnit,
+                fpsEnabled = _fps.Current.Status != FpsStatus.Disabled,
+            });
             return;
         }
 
@@ -535,16 +584,42 @@ internal sealed class RequestRouter
         }
 
         var current = _layouts.GetSettings();
-        var next = new LayoutSettings(
-            update!.HasActivePresetId ? update.ActivePresetId : current.ActivePresetId,
-            update.HasTemperatureUnit ? update.TemperatureUnit : current.TemperatureUnit);
-        if (_layouts.UpdateSettings(next) != LayoutWriteResult.Success)
+        if (update!.HasActivePresetId || update.HasTemperatureUnit)
         {
-            await EmptyStatus(context, StatusCodes.Status400BadRequest);
-            return;
+            var next = new LayoutSettings(
+                update.HasActivePresetId ? update.ActivePresetId : current.ActivePresetId,
+                update.HasTemperatureUnit ? update.TemperatureUnit : current.TemperatureUnit);
+            if (_layouts.UpdateSettings(next) != LayoutWriteResult.Success)
+            {
+                await EmptyStatus(context, StatusCodes.Status400BadRequest);
+                return;
+            }
         }
 
-        await WriteJson(context, next);
+        // FPS extensions write to config.json (via _fps), never to layouts.json -- they are
+        // not part of the strict layouts settings schema (docs/SPEC.md step7-fps item 7).
+        if (update.HasFpsEnabled)
+        {
+            _fps.SetEnabled(update.FpsEnabled!.Value);
+        }
+
+        if (update.HasFpsDenylistAdd)
+        {
+            _fps.AddToDenylist(update.FpsDenylistAdd!);
+        }
+
+        if (update.HasFpsPin)
+        {
+            _fps.SetPinnedProcess(update.FpsPin);
+        }
+
+        var updatedSettings = _layouts.GetSettings();
+        await WriteJson(context, new
+        {
+            updatedSettings.ActivePresetId,
+            updatedSettings.TemperatureUnit,
+            fpsEnabled = _fps.Current.Status != FpsStatus.Disabled,
+        });
     }
 
     private bool Authorize(HttpContext context)

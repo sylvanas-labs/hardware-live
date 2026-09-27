@@ -2,6 +2,15 @@ using HardwareLive.Protocol;
 
 namespace HardwareLive.Core;
 
+/// <summary>Appends synthetic hardware/sensors to a real sampler frame before it's stored
+/// (docs/SPEC.md step7-fps item 5): implemented by <c>Fps.FpsService</c> so the FPS synthetic
+/// sensors get history/peaks/staleness/classifier/preset support "for free" through the exact
+/// same path every real sensor uses, instead of a parallel telemetry mechanism.</summary>
+public interface IFrameAugmentor
+{
+    SensorFrame Augment(SensorFrame frame);
+}
+
 public interface ITelemetrySource
 {
     SensorFrame? LatestFrame { get; }
@@ -45,6 +54,11 @@ public sealed class TelemetryStore : ITelemetrySource
     {
         _clock = clock ?? TimeProvider.System;
     }
+
+    /// <summary>When set, every frame is run through this before being stored (docs/SPEC.md
+    /// step7-fps: the FPS synthetic-sensor injection point). Null (the default) is a no-op,
+    /// so every existing caller/test keeps working unchanged.</summary>
+    public IFrameAugmentor? FrameAugmentor { get; set; }
 
     public SensorFrame? LatestFrame
     {
@@ -117,6 +131,11 @@ public sealed class TelemetryStore : ITelemetrySource
     public void Add(SensorFrame frame)
     {
         ArgumentNullException.ThrowIfNull(frame);
+
+        if (FrameAugmentor is { } augmentor)
+        {
+            frame = augmentor.Augment(frame);
+        }
 
         lock (_sync)
         {

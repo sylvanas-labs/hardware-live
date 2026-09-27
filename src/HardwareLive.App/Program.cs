@@ -1,4 +1,5 @@
 using HardwareLive.Core;
+using HardwareLive.Core.Fps;
 using HardwareLive.Core.Profiles;
 
 // %LOCALAPPDATA%\HardwareLive\config.json takes priority (the app runs unelevated and
@@ -17,14 +18,31 @@ using var samplerCancellation = new CancellationTokenSource();
 // Run on the thread pool so a synchronously-completing connect path can never block server startup.
 var samplerTask = Task.Run(() => samplerClient.RunAsync(samplerCancellation.Token));
 
+// PresentMon lives beside the app under a "presentmon" subfolder (docs/SPEC.md step7-fps
+// item "App csproj"); FPS stays opt-in (fps.enabled in config.json, default false) even when
+// the exe is present.
+var presentMonPath = Path.Combine(AppContext.BaseDirectory, "presentmon", "PresentMon-2.6.0-x64.exe");
+var fpsService = new FpsService(configPath, presentMonPath);
+store.FrameAugmentor = fpsService;
+using var fpsCancellation = new CancellationTokenSource();
+var fpsTask = Task.Run(() => fpsService.RunAsync(fpsCancellation.Token));
+
 try
 {
-    await using var server = HardwareLiveServer.Create(port, store, thresholdConfig);
+    await using var server = HardwareLiveServer.Create(new HardwareLiveServerOptions
+    {
+        Port = port,
+        Telemetry = store,
+        ThresholdConfig = thresholdConfig,
+        Fps = fpsService,
+    });
     await server.StartAsync();
     await server.WaitForShutdownAsync();
 }
 finally
 {
     samplerCancellation.Cancel();
+    fpsCancellation.Cancel();
     await samplerTask;
+    await fpsTask;
 }

@@ -69,6 +69,7 @@ const state = {
   history: {},
   health: null,
   notes: null,
+  fps: null,
   layouts: [cloneLayout(FALLBACK_LAYOUT)],
   activePresetId: FALLBACK_LAYOUT.id,
   layout: cloneLayout(FALLBACK_LAYOUT),
@@ -142,7 +143,10 @@ function buildRenderPlan(layout = state.layout) {
 
   for (const widget of layout.widgets ?? []) {
     if (widget.kind === 'tile' || widget.kind === 'gauge') {
-      const ids = resolveWidgetRef(widget.ref, state.meta);
+      // fps.app is a string, not a sensor (docs/SPEC.md step7-fps item 5): it never appears
+      // in meta.roles, so it always resolves to its own pseudo-id here instead of ever
+      // counting toward the "N widgets unavailable" notice.
+      const ids = widget.ref?.role === 'fps.app' ? ['fps.app'] : resolveWidgetRef(widget.ref, state.meta);
       if (ids.length === 0) {
         unavailable++;
         continue;
@@ -195,6 +199,7 @@ const addWidgetBtn = document.getElementById('add-widget-btn');
 const connectionPillEl = document.getElementById('connection-pill');
 const connectionBannerEl = document.getElementById('connection-banner');
 const unavailableBannerEl = document.getElementById('unavailable-banner');
+const fpsDisabledBannerEl = document.getElementById('fps-disabled-banner');
 const quickFilterBarEl = document.getElementById('quick-filter-bar');
 const presetSelectEl = document.getElementById('preset-select');
 const presetMenuToggleBtn = document.getElementById('preset-menu-toggle');
@@ -211,9 +216,12 @@ function ctx() {
   return {
     meta: state.meta,
     thresholds: state.meta.thresholds ?? {},
-    snapshot: { values: state.values, history: state.history },
+    snapshot: { values: state.values, history: state.history, fps: state.fps },
     health: state.health,
     notes: state.notes,
+    fps: state.fps,
+    onFpsDenylistAdd: addFpsDenylist,
+    onFpsPin: pinFpsApp,
     temperatureUnit: state.temperatureUnit,
     focus: state.layout.focus ?? null,
   };
@@ -246,6 +254,57 @@ function showPresetStatus(message) {
       presetStatusEl.hidden = true;
     }, 8000);
   }
+}
+
+// ---- FPS settings actions (docs/SPEC.md step7-fps item 7) -----------------------------
+
+async function addFpsDenylist(appName) {
+  if (!appName) return;
+  try {
+    await writeJson(TOKEN, 'PUT', '/api/settings', { fpsDenylistAdd: appName });
+    showPresetStatus(`${appName} added to the FPS denylist.`);
+  } catch (error) {
+    console.error('[hardware-live] failed to update the FPS denylist', error);
+    showPresetStatus('Could not update the FPS denylist.');
+  }
+}
+
+async function pinFpsApp(appName) {
+  if (!appName) return;
+  try {
+    await writeJson(TOKEN, 'PUT', '/api/settings', { fpsPin: appName });
+    showPresetStatus(`Pinned ${appName} for FPS tracking.`);
+  } catch (error) {
+    console.error('[hardware-live] failed to pin the FPS app', error);
+    showPresetStatus('Could not pin this app.');
+  }
+}
+
+async function enableFps() {
+  try {
+    await writeJson(TOKEN, 'PUT', '/api/settings', { fpsEnabled: true });
+    showPresetStatus('FPS enabled. It needs one-time permission the first time PresentMon runs.');
+  } catch (error) {
+    console.error('[hardware-live] failed to enable FPS', error);
+    showPresetStatus('Could not enable FPS.');
+  }
+}
+
+function updateFpsDisabledBanner() {
+  const isGamingFocus = state.layout.focus === 'gaming';
+  const isDisabled = state.fps?.status === 'disabled';
+  fpsDisabledBannerEl.hidden = !(isGamingFocus && isDisabled);
+  if (fpsDisabledBannerEl.hidden) {
+    return;
+  }
+
+  clear(fpsDisabledBannerEl);
+  fpsDisabledBannerEl.append(
+    document.createTextNode('FPS is off – enable it in settings; it needs one-time permission. '),
+  );
+  const enableBtn = el('button', { className: 'btn', text: 'Enable', attrs: { type: 'button' } });
+  enableBtn.addEventListener('click', enableFps);
+  fpsDisabledBannerEl.append(enableBtn);
 }
 
 function buildEditControls(index, widget) {
@@ -293,6 +352,8 @@ function renderGrid(force = false) {
     unavailableBannerEl.textContent = `${unavailable} widget${unavailable === 1 ? '' : 's'} unavailable on this PC.`;
   }
 
+  updateFpsDisabledBanner();
+
   const signature = planSignature(visiblePlan, state.editMode);
   if (!force && signature === lastPlanSignature) {
     updateGridValues();
@@ -324,6 +385,7 @@ function updateGridValues() {
   for (const { node, entry } of renderedNodes) {
     updateWidgetElement(node, entry, context);
   }
+  updateFpsDisabledBanner();
 }
 
 // ---- Quick filters -------------------------------------------------------------------
@@ -857,6 +919,9 @@ const snapshotPoller = new Poller({
     for (const sensor of data.sensors ?? []) values[sensor.id] = sensor.value;
     state.values = values;
     for (const [id, series] of Object.entries(data.history ?? {})) state.history[id] = series;
+    // fps.app is a string, so it travels as its own snapshot field rather than a sensor
+    // value (docs/SPEC.md step7-fps item 5).
+    state.fps = data.fps ?? null;
     if (state.layout.sort === 'headroom') renderGrid();
     else updateGridValues();
   },

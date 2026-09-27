@@ -40,6 +40,11 @@ internal static class LayoutJson
     {
         "activePresetId",
         "temperatureUnit",
+        // FPS extensions (docs/SPEC.md step7-fps item 7): written straight through to
+        // config.json's "fps" section, never to layouts.json -- see RequestRouter.HandleSettings.
+        "fpsEnabled",
+        "fpsDenylistAdd",
+        "fpsPin",
     };
 
     private static readonly HashSet<string> WidgetKinds = new(StringComparer.Ordinal)
@@ -163,11 +168,59 @@ internal static class LayoutJson
                 }
             }
 
+            var hasFpsEnabled = root.TryGetProperty("fpsEnabled", out var fpsEnabledElement);
+            bool? fpsEnabled = null;
+            if (hasFpsEnabled)
+            {
+                if (fpsEnabledElement.ValueKind is not (JsonValueKind.True or JsonValueKind.False))
+                {
+                    return false;
+                }
+
+                fpsEnabled = fpsEnabledElement.GetBoolean();
+            }
+
+            var hasFpsDenylistAdd = root.TryGetProperty("fpsDenylistAdd", out var denylistElement);
+            string? fpsDenylistAdd = null;
+            if (hasFpsDenylistAdd)
+            {
+                if (denylistElement.ValueKind != JsonValueKind.String ||
+                    (fpsDenylistAdd = denylistElement.GetString()) is null ||
+                    fpsDenylistAdd.Length is < 1 or > 260)
+                {
+                    return false;
+                }
+            }
+
+            var hasFpsPin = root.TryGetProperty("fpsPin", out var pinElement);
+            string? fpsPin = null;
+            if (hasFpsPin)
+            {
+                if (pinElement.ValueKind == JsonValueKind.String)
+                {
+                    fpsPin = pinElement.GetString();
+                    if (fpsPin is null || fpsPin.Length > 260)
+                    {
+                        return false;
+                    }
+                }
+                else if (pinElement.ValueKind != JsonValueKind.Null)
+                {
+                    return false;
+                }
+            }
+
             update = new LayoutSettingsUpdate(
                 hasActivePresetId,
                 activePresetId,
                 hasTemperatureUnit,
-                temperatureUnit);
+                temperatureUnit,
+                hasFpsEnabled,
+                fpsEnabled,
+                hasFpsDenylistAdd,
+                fpsDenylistAdd,
+                hasFpsPin,
+                fpsPin);
             return true;
         }
         catch (JsonException)
@@ -402,4 +455,10 @@ internal sealed record LayoutSettingsUpdate(
     bool HasActivePresetId,
     string? ActivePresetId,
     bool HasTemperatureUnit,
-    string? TemperatureUnit);
+    string? TemperatureUnit,
+    bool HasFpsEnabled = false,
+    bool? FpsEnabled = null,
+    bool HasFpsDenylistAdd = false,
+    string? FpsDenylistAdd = null,
+    bool HasFpsPin = false,
+    string? FpsPin = null);

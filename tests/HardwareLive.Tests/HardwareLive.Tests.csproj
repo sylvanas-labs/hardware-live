@@ -24,6 +24,8 @@
 
   <ItemGroup>
     <None Include="..\fixtures\**\*.json" CopyToOutputDirectory="PreserveNewest" LinkBase="fixtures" />
+    <None Include="..\fixtures\**\*.csv" CopyToOutputDirectory="PreserveNewest" LinkBase="fixtures" />
+    <None Include="..\oracle\*.expected.json" CopyToOutputDirectory="PreserveNewest" LinkBase="oracle" />
   </ItemGroup>
 
   <ItemGroup>

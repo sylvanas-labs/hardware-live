@@ -33,6 +33,7 @@ import {
   sortByHeadroom,
   orderConcernsForFocus,
   forkPresetName,
+  describeFpsStatus,
 } from '../../src/HardwareLive.Core/wwwroot/js/logic.js';
 
 test('unitForSensorType maps every documented sensor type', () => {
@@ -49,6 +50,22 @@ test('unitForSensorType maps every documented sensor type', () => {
   assert.equal(unitForSensorType('Throughput'), 'MB/s');
   assert.equal(unitForSensorType('Factor'), '');
   assert.equal(unitForSensorType('SomethingUnknown'), '');
+});
+
+test('unitForSensorType maps the synthetic FPS sensor types (step7-fps)', () => {
+  assert.equal(unitForSensorType('Fps'), 'fps');
+  assert.equal(unitForSensorType('FrameTime'), 'ms');
+  assert.equal(displaySensorValue(6.94, 'FrameTime').decimals, 1);
+  assert.equal(displaySensorValue(144, 'Fps').decimals, 0);
+});
+
+test('describeFpsStatus covers every documented fps.status value', () => {
+  assert.equal(describeFpsStatus('disabled'), 'FPS is off');
+  assert.equal(describeFpsStatus('tracking'), 'tracking');
+  assert.equal(describeFpsStatus('needs-permission'), 'needs permission');
+  assert.equal(describeFpsStatus('not-installed'), 'PresentMon not installed');
+  assert.equal(describeFpsStatus('no-target'), 'no game detected');
+  assert.equal(describeFpsStatus('unknown-status'), '');
 });
 
 test('hardwareKindFromType buckets GPUs and board-adjacent types', () => {

@@ -113,6 +113,10 @@ public static partial class SensorClassifier
                 case "Battery":
                     ClassifyBattery(sensors, addRole);
                     break;
+
+                case "Fps":
+                    ClassifyFps(sensors, addRole);
+                    break;
             }
         }
 

@@ -1,4 +1,5 @@
 using HardwareLive.Core;
+using HardwareLive.Core.Fps;
 
 namespace HardwareLive.Tests;
 
@@ -27,7 +28,8 @@ internal sealed class ServerTestHost : IAsyncDisposable
         ITelemetrySource? telemetry = null,
         TimeProvider? clock = null,
         string? notesDirectory = null,
-        string? layoutsDirectory = null)
+        string? layoutsDirectory = null,
+        IFpsController? fps = null)
     {
         var ownedDirectories = new List<string>();
         if (notesDirectory is null)
@@ -49,6 +51,7 @@ internal sealed class ServerTestHost : IAsyncDisposable
             Clock = clock,
             NotesDirectory = notesDirectory,
             LayoutsDirectory = layoutsDirectory,
+            Fps = fps,
         });
         await server.StartAsync();
         return new ServerTestHost(server, ownedDirectories);

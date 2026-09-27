@@ -17,7 +17,13 @@ import {
   displaySensorValue,
   convertTemperature,
   orderConcernsForFocus,
+  describeFpsStatus,
 } from './logic.js';
+
+/** docs/SPEC.md step7-fps item 5: fps.app is a string (the tracked process name), not a
+ * sensor -- this pseudo sensor id is resolved specially in app.js's render plan and rendered
+ * specially here instead of going through the normal sensor-value tile path. */
+const FPS_APP_PSEUDO_ID = 'fps.app';
 
 const SPARK_SAMPLES = 60;
 const CHART_SAMPLES = 300;
@@ -75,7 +81,52 @@ function history(ctx, sensorId, info = sensorInfo(sensorId, ctx)) {
 
 // ---- Tile -----------------------------------------------------------------------------
 
+function buildFpsAppTile(ctx) {
+  const tile = el('div', { className: 'tile fps-app-tile', attrs: { 'data-sensor-id': FPS_APP_PSEUDO_ID } });
+  const label = el('div', { className: 'tile-label', text: 'Tracked app' });
+  const value = el('div', { className: 'tile-value' });
+  const status = el('div', { className: 'tile-status' });
+  const actions = el('div', { className: 'tile-actions' });
+  const notTrackingBtn = el('button', {
+    className: 'btn',
+    text: 'Not tracking?',
+    attrs: { type: 'button' },
+  });
+  const pinBtn = el('button', { className: 'btn', text: 'Pin this app', attrs: { type: 'button' } });
+  actions.append(notTrackingBtn, pinBtn);
+  tile.append(label, value, status, actions);
+  updateFpsAppTile(tile, ctx);
+  return tile;
+}
+
+function updateFpsAppTile(tile, ctx) {
+  const fps = ctx.fps ?? null;
+  const valueNode = tile.querySelector('.tile-value');
+  clear(valueNode);
+  valueNode.append(document.createTextNode(''));
+  setSanitizedText(valueNode, fps?.app || '–');
+
+  const statusNode = tile.querySelector('.tile-status');
+  statusNode.textContent = describeFpsStatus(fps?.status);
+  statusNode.className = `tile-status${fps?.status && fps.status !== 'tracking' ? ' level-watch' : ''}`;
+
+  const [notTrackingBtn, pinBtn] = tile.querySelectorAll('.tile-actions button');
+  const hasApp = Boolean(fps?.app);
+  const actionsNode = tile.querySelector('.tile-actions');
+  actionsNode.hidden = !hasApp;
+  if (notTrackingBtn) {
+    notTrackingBtn.onclick = () => ctx.onFpsDenylistAdd?.(fps.app);
+  }
+  if (pinBtn) {
+    pinBtn.onclick = () => ctx.onFpsPin?.(fps.app);
+  }
+}
+
 function buildSingleTile(sensorId, ctx) {
+  if (sensorId === FPS_APP_PSEUDO_ID) {
+    return buildFpsAppTile(ctx);
+  }
+
   const info = sensorInfo(sensorId, ctx);
   const tile = el('div', { className: 'tile', attrs: { 'data-sensor-id': sensorId } });
   const label = el('div', { className: 'tile-label' });
@@ -93,6 +144,11 @@ function buildSingleTile(sensorId, ctx) {
 }
 
 function updateSingleTile(tile, sensorId, ctx) {
+  if (sensorId === FPS_APP_PSEUDO_ID) {
+    updateFpsAppTile(tile, ctx);
+    return;
+  }
+
   const info = sensorInfo(sensorId, ctx);
   const value = latestValue(ctx, sensorId, info);
   const level = resolveSensorLevel(sensorId, value, info.threshold, ctx.health?.sensorLevels);

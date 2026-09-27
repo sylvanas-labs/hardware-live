@@ -1,0 +1,485 @@
+{
+  "buckets": [
+    {
+      "avgFps": 143.558253,
+      "bucketKey": 1000000,
+      "frametimeMs": 6.965813,
+      "jitterMs": 0.484418,
+      "low1Fps": 123.105711,
+      "n": 142
+    },
+    {
+      "avgFps": 144.597724,
+      "bucketKey": 1001000,
+      "frametimeMs": 6.915738,
+      "jitterMs": 0.531086,
+      "low1Fps": 122.036049,
+      "n": 144
+    },
+    {
+      "avgFps": 143.845003,
+      "bucketKey": 1002000,
+      "frametimeMs": 6.951927,
+      "jitterMs": 0.488057,
+      "low1Fps": 123.105711,
+      "n": 143
+    },
+    {
+      "avgFps": 143.226485,
+      "bucketKey": 1003000,
+      "frametimeMs": 6.981949,
+      "jitterMs": 0.514745,
+      "low1Fps": 122.697881,
+      "n": 139
+    },
+    {
+      "avgFps": 145.725128,
+      "bucketKey": 1004000,
+      "frametimeMs": 6.862235,
+      "jitterMs": 0.484359,
+      "low1Fps": 123.105711,
+      "n": 142
+    },
+    {
+      "avgFps": 143.882176,
+      "bucketKey": 1005000,
+      "frametimeMs": 6.950131,
+      "jitterMs": 0.547892,
+      "low1Fps": 124.407509,
+      "n": 141
+    },
+    {
+      "avgFps": 142.724908,
+      "bucketKey": 1006000,
+      "frametimeMs": 7.006486,
+      "jitterMs": 0.523261,
+      "low1Fps": 123.105711,
+      "n": 138
+    },
+    {
+      "avgFps": 144.651837,
+      "bucketKey": 1007000,
+      "frametimeMs": 6.913151,
+      "jitterMs": 0.533173,
+      "low1Fps": 122.848614,
+      "n": 141
+    },
+    {
+      "avgFps": 144.20106,
+      "bucketKey": 1008000,
+      "frametimeMs": 6.934762,
+      "jitterMs": 0.493147,
+      "low1Fps": 122.697881,
+      "n": 144
+    },
+    {
+      "avgFps": 144.993134,
+      "bucketKey": 1009000,
+      "frametimeMs": 6.896878,
+      "jitterMs": 0.519364,
+      "low1Fps": 122.848614,
+      "n": 143
+    },
+    {
+      "avgFps": 143.540918,
+      "bucketKey": 1010000,
+      "frametimeMs": 6.966655,
+      "jitterMs": 0.524424,
+      "low1Fps": 122.697881,
+      "n": 141
+    },
+    {
+      "avgFps": 144.364291,
+      "bucketKey": 1011000,
+      "frametimeMs": 6.926921,
+      "jitterMs": 0.493541,
+      "low1Fps": 122.649725,
+      "n": 140
+    },
+    {
+      "avgFps": 143.648656,
+      "bucketKey": 1012000,
+      "frametimeMs": 6.96143,
+      "jitterMs": 0.492752,
+      "low1Fps": 122.649725,
+      "n": 142
+    },
+    {
+      "avgFps": 144.133136,
+      "bucketKey": 1013000,
+      "frametimeMs": 6.93803,
+      "jitterMs": 0.451386,
+      "low1Fps": 122.697881,
+      "n": 144
+    },
+    {
+      "avgFps": 145.664228,
+      "bucketKey": 1014000,
+      "frametimeMs": 6.865103,
+      "jitterMs": 0.435322,
+      "low1Fps": 122.848614,
+      "n": 144
+    },
+    {
+      "avgFps": 144.530578,
+      "bucketKey": 1015000,
+      "frametimeMs": 6.918951,
+      "jitterMs": 0.527866,
+      "low1Fps": 122.928652,
+      "n": 139
+    },
+    {
+      "avgFps": 143.410326,
+      "bucketKey": 1016000,
+      "frametimeMs": 6.972999,
+      "jitterMs": 0.486646,
+      "low1Fps": 123.339541,
+      "n": 140
+    },
+    {
+      "avgFps": 144.191701,
+      "bucketKey": 1017000,
+      "frametimeMs": 6.935212,
+      "jitterMs": 0.49898,
+      "low1Fps": 123.331936,
+      "n": 143
+    },
+    {
+      "avgFps": 145.47982,
+      "bucketKey": 1018000,
+      "frametimeMs": 6.873806,
+      "jitterMs": 0.490573,
+      "low1Fps": 123.331936,
+      "n": 143
+    },
+    {
+      "avgFps": 143.908491,
+      "bucketKey": 1019000,
+      "frametimeMs": 6.94886,
+      "jitterMs": 0.447285,
+      "low1Fps": 123.423268,
+      "n": 141
+    },
+    {
+      "avgFps": 146.38944,
+      "bucketKey": 1020000,
+      "frametimeMs": 6.831094,
+      "jitterMs": 0.490658,
+      "low1Fps": 123.695018,
+      "n": 146
+    },
+    {
+      "avgFps": 144.546093,
+      "bucketKey": 1021000,
+      "frametimeMs": 6.918208,
+      "jitterMs": 0.498504,
+      "low1Fps": 123.835942,
+      "n": 142
+    },
+    {
+      "avgFps": 144.033745,
+      "bucketKey": 1022000,
+      "frametimeMs": 6.942817,
+      "jitterMs": 0.487543,
+      "low1Fps": 123.901919,
+      "n": 143
+    },
+    {
+      "avgFps": 143.276547,
+      "bucketKey": 1023000,
+      "frametimeMs": 6.979509,
+      "jitterMs": 0.511958,
+      "low1Fps": 123.901919,
+      "n": 139
+    },
+    {
+      "avgFps": 143.465673,
+      "bucketKey": 1024000,
+      "frametimeMs": 6.970309,
+      "jitterMs": 0.522345,
+      "low1Fps": 123.73175,
+      "n": 141
+    },
+    {
+      "avgFps": 144.625109,
+      "bucketKey": 1025000,
+      "frametimeMs": 6.914429,
+      "jitterMs": 0.491478,
+      "low1Fps": 123.695018,
+      "n": 143
+    },
+    {
+      "avgFps": 142.606487,
+      "bucketKey": 1026000,
+      "frametimeMs": 7.012304,
+      "jitterMs": 0.491338,
+      "low1Fps": 123.734812,
+      "n": 135
+    },
+    {
+      "avgFps": 143.473762,
+      "bucketKey": 1027000,
+      "frametimeMs": 6.969915,
+      "jitterMs": 0.508566,
+      "low1Fps": 123.423268,
+      "n": 142
+    },
+    {
+      "avgFps": 144.655488,
+      "bucketKey": 1028000,
+      "frametimeMs": 6.912977,
+      "jitterMs": 0.513532,
+      "low1Fps": 123.695018,
+      "n": 141
+    },
+    {
+      "avgFps": 145.827674,
+      "bucketKey": 1029000,
+      "frametimeMs": 6.857409,
+      "jitterMs": 0.504005,
+      "low1Fps": 123.714911,
+      "n": 145
+    },
+    {
+      "avgFps": 145.722395,
+      "bucketKey": 1030000,
+      "frametimeMs": 6.862363,
+      "jitterMs": 0.478869,
+      "low1Fps": 123.695018,
+      "n": 144
+    },
+    {
+      "avgFps": 143.990301,
+      "bucketKey": 1031000,
+      "frametimeMs": 6.944912,
+      "jitterMs": 0.500075,
+      "low1Fps": 123.695018,
+      "n": 139
+    },
+    {
+      "avgFps": 144.479455,
+      "bucketKey": 1032000,
+      "frametimeMs": 6.921399,
+      "jitterMs": 0.574776,
+      "low1Fps": 123.423268,
+      "n": 142
+    },
+    {
+      "avgFps": 143.066172,
+      "bucketKey": 1033000,
+      "frametimeMs": 6.989773,
+      "jitterMs": 0.497122,
+      "low1Fps": 123.423268,
+      "n": 142
+    },
+    {
+      "avgFps": 143.728711,
+      "bucketKey": 1034000,
+      "frametimeMs": 6.957552,
+      "jitterMs": 0.488898,
+      "low1Fps": 123.620091,
+      "n": 142
+    },
+    {
+      "avgFps": 144.241605,
+      "bucketKey": 1035000,
+      "frametimeMs": 6.932813,
+      "jitterMs": 0.472729,
+      "low1Fps": 123.620091,
+      "n": 144
+    },
+    {
+      "avgFps": 144.807508,
+      "bucketKey": 1036000,
+      "frametimeMs": 6.905719,
+      "jitterMs": 0.481129,
+      "low1Fps": 123.423268,
+      "n": 140
+    },
+    {
+      "avgFps": 144.039309,
+      "bucketKey": 1037000,
+      "frametimeMs": 6.942549,
+      "jitterMs": 0.50095,
+      "low1Fps": 123.339541,
+      "n": 142
+    },
+    {
+      "avgFps": 144.793681,
+      "bucketKey": 1038000,
+      "frametimeMs": 6.906379,
+      "jitterMs": 0.482809,
+      "low1Fps": 123.331936,
+      "n": 141
+    },
+    {
+      "avgFps": 143.788212,
+      "bucketKey": 1039000,
+      "frametimeMs": 6.954673,
+      "jitterMs": 0.463712,
+      "low1Fps": 123.339541,
+      "n": 141
+    },
+    {
+      "avgFps": 144.379476,
+      "bucketKey": 1040000,
+      "frametimeMs": 6.926192,
+      "jitterMs": 0.530453,
+      "low1Fps": 123.423268,
+      "n": 141
+    },
+    {
+      "avgFps": 144.23133,
+      "bucketKey": 1041000,
+      "frametimeMs": 6.933306,
+      "jitterMs": 0.466692,
+      "low1Fps": 123.534571,
+      "n": 141
+    },
+    {
+      "avgFps": 143.4822,
+      "bucketKey": 1042000,
+      "frametimeMs": 6.969506,
+      "jitterMs": 0.480348,
+      "low1Fps": 123.423268,
+      "n": 142
+    },
+    {
+      "avgFps": 144.314338,
+      "bucketKey": 1043000,
+      "frametimeMs": 6.929318,
+      "jitterMs": 0.449817,
+      "low1Fps": 123.534571,
+      "n": 141
+    },
+    {
+      "avgFps": 143.672829,
+      "bucketKey": 1044000,
+      "frametimeMs": 6.960258,
+      "jitterMs": 0.508483,
+      "low1Fps": 123.545255,
+      "n": 139
+    },
+    {
+      "avgFps": 143.492219,
+      "bucketKey": 1045000,
+      "frametimeMs": 6.969019,
+      "jitterMs": 0.513548,
+      "low1Fps": 123.552887,
+      "n": 142
+    },
+    {
+      "avgFps": 142.994252,
+      "bucketKey": 1046000,
+      "frametimeMs": 6.993288,
+      "jitterMs": 0.509542,
+      "low1Fps": 123.423268,
+      "n": 143
+    },
+    {
+      "avgFps": 143.32171,
+      "bucketKey": 1047000,
+      "frametimeMs": 6.97731,
+      "jitterMs": 0.498404,
+      "low1Fps": 123.339541,
+      "n": 140
+    },
+    {
+      "avgFps": 143.678574,
+      "bucketKey": 1048000,
+      "frametimeMs": 6.95998,
+      "jitterMs": 0.505851,
+      "low1Fps": 123.339541,
+      "n": 140
+    },
+    {
+      "avgFps": 144.404915,
+      "bucketKey": 1049000,
+      "frametimeMs": 6.924972,
+      "jitterMs": 0.437643,
+      "low1Fps": 123.423268,
+      "n": 136
+    },
+    {
+      "avgFps": 144.96938,
+      "bucketKey": 1050000,
+      "frametimeMs": 6.898008,
+      "jitterMs": 0.550125,
+      "low1Fps": 123.534571,
+      "n": 143
+    },
+    {
+      "avgFps": 142.839221,
+      "bucketKey": 1051000,
+      "frametimeMs": 7.000878,
+      "jitterMs": 0.488763,
+      "low1Fps": 123.534571,
+      "n": 138
+    },
+    {
+      "avgFps": 143.841752,
+      "bucketKey": 1052000,
+      "frametimeMs": 6.952084,
+      "jitterMs": 0.46424,
+      "low1Fps": 123.534571,
+      "n": 141
+    },
+    {
+      "avgFps": 143.719578,
+      "bucketKey": 1053000,
+      "frametimeMs": 6.957994,
+      "jitterMs": 0.531142,
+      "low1Fps": 123.545255,
+      "n": 140
+    },
+    {
+      "avgFps": 144.315209,
+      "bucketKey": 1054000,
+      "frametimeMs": 6.929277,
+      "jitterMs": 0.462236,
+      "low1Fps": 123.545255,
+      "n": 141
+    },
+    {
+      "avgFps": 144.122735,
+      "bucketKey": 1055000,
+      "frametimeMs": 6.938531,
+      "jitterMs": 0.47842,
+      "low1Fps": 123.545255,
+      "n": 144
+    },
+    {
+      "avgFps": 141.982389,
+      "bucketKey": 1056000,
+      "frametimeMs": 7.043127,
+      "jitterMs": 0.564963,
+      "low1Fps": 123.263525,
+      "n": 137
+    },
+    {
+      "avgFps": 143.804167,
+      "bucketKey": 1057000,
+      "frametimeMs": 6.953901,
+      "jitterMs": 0.456672,
+      "low1Fps": 123.231626,
+      "n": 142
+    },
+    {
+      "avgFps": 145.441764,
+      "bucketKey": 1058000,
+      "frametimeMs": 6.875604,
+      "jitterMs": 0.470488,
+      "low1Fps": 123.263525,
+      "n": 144
+    },
+    {
+      "avgFps": 145.317541,
+      "bucketKey": 1059000,
+      "frametimeMs": 6.881482,
+      "jitterMs": 0.5409,
+      "low1Fps": 123.263525,
+      "n": 142
+    }
+  ],
+  "pid": 5000
+}

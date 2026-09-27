@@ -4,7 +4,8 @@
 // threshold level calc, keyboard reorder index math, name sanitizing -- have a test that
 // runs without a browser.
 
-/** Units per Sensor Type (docs/SPEC.md step5 feature 2). */
+/** Units per Sensor Type (docs/SPEC.md step5 feature 2; Fps/FrameTime added in step7-fps for
+ * the synthetic /fps/* sensors). */
 const UNIT_BY_SENSOR_TYPE = {
   Temperature: '°C',
   Power: 'W',
@@ -18,6 +19,8 @@ const UNIT_BY_SENSOR_TYPE = {
   SmallData: 'MB',
   Throughput: 'MB/s',
   Factor: '',
+  Fps: 'fps',
+  FrameTime: 'ms',
 };
 
 export function unitForSensorType(type, temperatureUnit = 'C') {
@@ -45,7 +48,7 @@ export function displaySensorValue(value, sensorType, temperatureUnit = 'C') {
   return {
     value: temperature ? convertTemperature(value, temperatureUnit) : value,
     unit: unitForSensorType(sensorType, temperatureUnit),
-    decimals: temperature || ['Load', 'Level', 'Control', 'Power', 'Voltage'].includes(sensorType) ? 1 : 0,
+    decimals: temperature || ['Load', 'Level', 'Control', 'Power', 'Voltage', 'FrameTime'].includes(sensorType) ? 1 : 0,
   };
 }
 
@@ -460,6 +463,23 @@ export function orderConcernsForFocus(concerns, focus) {
     else remaining.push(concern);
   }
   return [...focused, ...critical, ...remaining];
+}
+
+/** Human text for /api/snapshot's fps.status (docs/SPEC.md step7-fps item 7). */
+const FPS_STATUS_TEXT = {
+  disabled: 'FPS is off',
+  starting: 'starting…',
+  'not-installed': 'PresentMon not installed',
+  'integrity-failed': 'PresentMon failed its integrity check',
+  'needs-permission': 'needs permission',
+  'unexpected-output': 'unexpected PresentMon output',
+  unavailable: 'unavailable',
+  'no-target': 'no game detected',
+  tracking: 'tracking',
+};
+
+export function describeFpsStatus(status) {
+  return FPS_STATUS_TEXT[status] ?? '';
 }
 
 export function forkPresetName(name) {

@@ -69,6 +69,14 @@ public static class Roles
     public const string BatteryRate = "battery.rate";
     public const string BatteryTemp = "battery.temp";
     public const string BatteryHealth = "battery.health";
+
+    /// <summary>Synthetic FPS-capture roles (docs/SPEC.md Component 9 / step7-fps): assigned
+    /// only to the four synthetic <c>/fps/*</c> sensors <see cref="Fps.FpsService"/> appends
+    /// to every frame, never to a real LHM sensor.</summary>
+    public const string FpsAvg = "fps.avg";
+    public const string FpsLow1 = "fps.low1";
+    public const string FrametimeMs = "frametime.ms";
+    public const string FrametimeJitter = "frametime.jitter";
 }
 
 /// <summary>Exact <see cref="LimitSensor"/> kind strings.</summary>

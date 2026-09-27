@@ -77,6 +77,11 @@ internal static class RoleLabels
         [Roles.BatteryRate] = "Battery charge rate",
         [Roles.BatteryTemp] = "Battery temperature",
         [Roles.BatteryHealth] = "Battery health",
+
+        [Roles.FpsAvg] = "Average FPS",
+        [Roles.FpsLow1] = "1% low FPS",
+        [Roles.FrametimeMs] = "Frame time",
+        [Roles.FrametimeJitter] = "Frame time jitter",
     };
 
     /// <summary>The degree sign is written out as an escape so it survives regardless of the

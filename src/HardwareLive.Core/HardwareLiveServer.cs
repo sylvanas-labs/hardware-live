@@ -1,5 +1,6 @@
 using System.Net;
 using System.Security.Cryptography;
+using HardwareLive.Core.Fps;
 using HardwareLive.Core.Profiles;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -37,6 +38,10 @@ public sealed record HardwareLiveServerOptions
     /// <summary>Overrides the directory layouts.json is stored in. Defaults to
     /// <c>%LOCALAPPDATA%\HardwareLive</c>.</summary>
     public string? LayoutsDirectory { get; init; }
+
+    /// <summary>The FPS capture controller (docs/SPEC.md step7-fps). Defaults to a disabled
+    /// no-op, so every existing caller keeps compiling and behaving exactly as before.</summary>
+    public IFpsController? Fps { get; init; }
 }
 
 public sealed class HardwareLiveServer : IAsyncDisposable
@@ -126,7 +131,8 @@ public sealed class HardwareLiveServer : IAsyncDisposable
             thresholdConfig,
             clock,
             createdAt,
-            notesPath);
+            notesPath,
+            options.Fps);
         application.Run(router.HandleAsync);
 
         return new HardwareLiveServer(application, token);
