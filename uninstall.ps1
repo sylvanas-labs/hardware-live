@@ -59,6 +59,7 @@ $ProgramDataRoot = Join-Path ([Environment]::GetFolderPath('CommonApplicationDat
 $LogsDir = Join-Path $ProgramDataRoot 'logs'
 $InstallStatePath = Join-Path $ProgramDataRoot 'install-state.json'
 $TaskFolder = '\HardwareLive\'
+$StartMenuShortcutPath = Join-Path ([Environment]::GetFolderPath('CommonPrograms')) 'Hardware Live.lnk'
 $PerfLogUsersSid = 'S-1-5-32-559'
 
 function Write-UninstallLog {
@@ -191,6 +192,12 @@ Invoke-GuardedAction -Description "stop and unregister the $TaskFolder Sampler /
     }
     catch {
         Write-UninstallLog "WARN: could not remove the (empty) $TaskFolder task folder: $($_.Exception.Message)"
+    }
+}
+
+Invoke-GuardedAction -Description "remove the Start menu shortcut $StartMenuShortcutPath" -Action {
+    if (Test-Path -LiteralPath $StartMenuShortcutPath) {
+        Remove-Item -LiteralPath $StartMenuShortcutPath -Force
     }
 }
 

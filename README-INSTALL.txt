@@ -45,7 +45,8 @@ Hardware Live -- install instructions
 
 6. When install.ps1 finishes, the dashboard opens automatically at
    http://127.0.0.1:8790/ (not "localhost" -- the server only listens on the IPv4 loopback
-   address). It will also open automatically at every logon from now on.
+   address). It will also open automatically at every logon from now on. If you close the
+   window, reopen it from the Start menu ("Hardware Live").
 
 7. To uninstall, run uninstall.ps1 the same way (right-click -> Unblock, or
    -ExecutionPolicy Bypass). It asks whether to keep your saved layouts (default: keep).

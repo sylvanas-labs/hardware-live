@@ -27,7 +27,10 @@ otherwise the zip ships without it and prints that.
    ACL (SYSTEM+Administrators FullControl, Users ReadAndExecute -- verified and rolled back on
    failure), creates `%ProgramData%\HardwareLive\logs` with the same protected ACL, registers
    `\HardwareLive\Sampler` (SYSTEM) and `\HardwareLive\App` (the invoking user, Limited) logon
-   tasks, offers FPS/Performance Log Users consent, starts both tasks, and polls
+   tasks, creates the all-users Start menu shortcut
+   (`%ProgramData%\Microsoft\Windows\Start Menu\Programs\Hardware Live.lnk`; relaunching the exe
+   while it's running just reopens the dashboard window), offers FPS/Performance Log Users
+   consent, starts both tasks, and polls
    `http://127.0.0.1:<port>/api/health` for up to 30s.
 4. Unattended: `-EnableFps` / `-NoFps` skip the consent prompt; `-Port <n>` overrides the port.
 5. Dry run: `install.ps1 -WhatIf` prints every action and changes nothing (verified: no
@@ -43,7 +46,8 @@ re-copies (robocopy `/MIR`), and never regresses `perfLogUsersAddedByApp` from `
 powershell -ExecutionPolicy Bypass -File .\uninstall.ps1
 ```
 
-Stops + unregisters both tasks (and the `\HardwareLive\` folder if empty), removes
+Stops + unregisters both tasks (and the `\HardwareLive\` folder if empty), removes the Start
+menu shortcut,
 `%ProgramFiles%\HardwareLive` and `%ProgramData%\HardwareLive` (`-KeepLogs` to keep the logs
 subfolder), asks about `%LOCALAPPDATA%\HardwareLive` (`-KeepUserData`/`-RemoveUserData`,
 default keep), and offers to remove the Performance Log Users membership only if

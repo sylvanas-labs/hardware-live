@@ -64,6 +64,7 @@ $LogsDir = Join-Path $ProgramDataRoot 'logs'
 $InstallLogPath = Join-Path $LogsDir 'install.log'
 $InstallStatePath = Join-Path $ProgramDataRoot 'install-state.json'
 $TaskFolder = '\HardwareLive\'
+$StartMenuShortcutPath = Join-Path ([Environment]::GetFolderPath('CommonPrograms')) 'Hardware Live.lnk'
 $DefaultPort = 8790
 $PerfLogUsersSid = 'S-1-5-32-559'
 
@@ -613,6 +614,27 @@ Invoke-GuardedAction -Description "register the HardwareLive\App task (Limited, 
 }
 
 # ---------------------------------------------------------------------------
+# Step 5b: all-users Start menu shortcut. The common Programs folder is admin-writable only,
+# and the target lives in the protected Program Files tree, so a Limited user cannot retarget
+# it. Launching the exe while an instance is already serving just reopens the dashboard window
+# (single-instance mutex), so the shortcut doubles as "reopen dashboard".
+# ---------------------------------------------------------------------------
+
+Invoke-GuardedAction -Description "create the Start menu shortcut $StartMenuShortcutPath" -Action {
+    $shell = New-Object -ComObject 'WScript.Shell'
+    try {
+        $shortcut = $shell.CreateShortcut($StartMenuShortcutPath)
+        $shortcut.TargetPath = Join-Path $ProgramFilesRoot 'app\hardware-live.exe'
+        $shortcut.WorkingDirectory = Join-Path $ProgramFilesRoot 'app'
+        $shortcut.Description = 'Hardware Live dashboard'
+        $shortcut.Save()
+    }
+    finally {
+        [void][System.Runtime.InteropServices.Marshal]::ReleaseComObject($shell)
+    }
+}
+
+# ---------------------------------------------------------------------------
 # Step 6: FPS consent record + Performance Log Users membership (elevated). The consent
 # decision itself, and the %LOCALAPPDATA%\HardwareLive\config.json write, happen in the
 # unelevated phase above (Step 1) on the normal (self-elevating) path. This block is reached
@@ -791,6 +813,7 @@ Write-InstallLog "Dashboard: http://127.0.0.1:$effectivePort/"
 Write-InstallLog "Target user: $targetAccountName ($UserSid)"
 Write-InstallLog "FPS capture: $fpsConsent (Performance Log Users membership takes effect at next logon if just added)"
 Write-InstallLog "Scheduled tasks: $TaskFolder Sampler, $TaskFolder App"
+Write-InstallLog "Start menu shortcut: $StartMenuShortcutPath"
 
 Save-InstallLog
 
