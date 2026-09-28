@@ -28,8 +28,8 @@ otherwise the zip ships without it and prints that.
    failure), creates `%ProgramData%\HardwareLive\logs` with the same protected ACL, registers
    `\HardwareLive\Sampler` (SYSTEM) and `\HardwareLive\App` (the invoking user, Limited) logon
    tasks, creates the all-users Start menu shortcut
-   (`%ProgramData%\Microsoft\Windows\Start Menu\Programs\Hardware Live.lnk`; relaunching the exe
-   while it's running just reopens the dashboard window), offers FPS/Performance Log Users
+   (`%ProgramData%\Microsoft\Windows\Start Menu\Programs\Hardware Live.lnk`; it passes `--open`,
+   so clicking it while the app is running just reopens the dashboard window), offers FPS/Performance Log Users
    consent, starts both tasks, and polls
    `http://127.0.0.1:<port>/api/health` for up to 30s.
 4. Unattended: `-EnableFps` / `-NoFps` skip the consent prompt; `-Port <n>` overrides the port.

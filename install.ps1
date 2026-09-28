@@ -616,8 +616,8 @@ Invoke-GuardedAction -Description "register the HardwareLive\App task (Limited, 
 # ---------------------------------------------------------------------------
 # Step 5b: all-users Start menu shortcut. The common Programs folder is admin-writable only,
 # and the target lives in the protected Program Files tree, so a Limited user cannot retarget
-# it. Launching the exe while an instance is already serving just reopens the dashboard window
-# (single-instance mutex), so the shortcut doubles as "reopen dashboard".
+# it. With --open, launching the exe while an instance is already serving just reopens the
+# dashboard window (single-instance mutex), so the shortcut doubles as "reopen dashboard".
 # ---------------------------------------------------------------------------
 
 Invoke-GuardedAction -Description "create the Start menu shortcut $StartMenuShortcutPath" -Action {
@@ -625,6 +625,9 @@ Invoke-GuardedAction -Description "create the Start menu shortcut $StartMenuShor
     try {
         $shortcut = $shell.CreateShortcut($StartMenuShortcutPath)
         $shortcut.TargetPath = Join-Path $ProgramFilesRoot 'app\hardware-live.exe'
+        # --open is load-bearing: without it a secondary instance exits silently (see
+        # WindowLaunchDecision.ShouldLaunchOnSecondaryInstance).
+        $shortcut.Arguments = '--open'
         $shortcut.WorkingDirectory = Join-Path $ProgramFilesRoot 'app'
         $shortcut.Description = 'Hardware Live dashboard'
         $shortcut.Save()
